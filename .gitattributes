@@ -1,0 +1,73 @@
+# =============================================================================
+# Merge strategy: merge=ours
+# When merging from upstream (Horizon main), keep our branch's version for
+# these paths. One-time setup: git config merge.ours.driver true
+# See .cursor/references/gitattributes-merge-strategy.md
+# =============================================================================
+
+# --- Config (store-specific settings and schema extensions) ---
+config/settings_data.json merge=ours
+config/settings_schema.json merge=ours
+
+# --- Layout (core shell: fonts, colours, scripts, structure) ---
+layout/theme.liquid merge=ours
+
+# --- Sections: WS 0–1 Core & Global Navigation ---
+sections/header.liquid merge=ours
+sections/header-announcements.liquid merge=ours
+sections/footer.liquid merge=ours
+sections/footer-utilities.liquid merge=ours
+sections/search-header.liquid merge=ours
+sections/predictive-search.liquid merge=ours
+sections/predictive-search-empty.liquid merge=ours
+
+# --- Sections: WS 2 Engine A (Homepage, PLP, PDP) ---
+sections/hero.liquid merge=ours
+sections/main-collection.liquid merge=ours
+sections/product-list.liquid merge=ours
+sections/product-information.liquid merge=ours
+sections/featured-product.liquid merge=ours
+sections/featured-product-information.liquid merge=ours
+sections/carousel.liquid merge=ours
+sections/main-cart.liquid merge=ours
+
+# --- Sections: WS 4 Journal & Content ---
+sections/main-blog.liquid merge=ours
+sections/main-blog-post.liquid merge=ours
+sections/featured-blog-posts.liquid merge=ours
+sections/main-page.liquid merge=ours
+sections/main-404.liquid merge=ours
+sections/search-results.liquid merge=ours
+
+# --- Templates (section order and settings per page type) ---
+templates/index.json merge=ours
+templates/404.json merge=ours
+templates/product.json merge=ours
+templates/collection.json merge=ours
+templates/cart.json merge=ours
+templates/blog.json merge=ours
+templates/article.json merge=ours
+templates/search.json merge=ours
+templates/page.json merge=ours
+templates/page.contact.json merge=ours
+
+# --- Primary locale (custom copy and schema labels) ---
+locales/en.default.json merge=ours
+locales/en.default.schema.json merge=ours
+
+# --- Snippets: header, cart, product card, design tokens ---
+snippets/theme-styles-variables.liquid merge=ours
+snippets/fonts.liquid merge=ours
+snippets/color-schemes.liquid merge=ours
+snippets/header-row.liquid merge=ours
+snippets/header-drawer.liquid merge=ours
+snippets/header-actions.liquid merge=ours
+snippets/mega-menu-list.liquid merge=ours
+snippets/cart-summary.liquid merge=ours
+snippets/cart-products.liquid merge=ours
+snippets/product-card.liquid merge=ours
+snippets/quick-add.liquid merge=ours
+snippets/quick-add-modal.liquid merge=ours
+snippets/variant-swatches.liquid merge=ours
+snippets/add-to-cart-button.liquid merge=ours
+snippets/product-information-content.liquid merge=ours
