@@ -17,9 +17,6 @@ sections/header.liquid merge=ours
 sections/header-announcements.liquid merge=ours
 sections/footer.liquid merge=ours
 sections/footer-utilities.liquid merge=ours
-sections/search-header.liquid merge=ours
-sections/predictive-search.liquid merge=ours
-sections/predictive-search-empty.liquid merge=ours
 
 # --- Sections: WS 2 Engine A (Homepage, PLP, PDP) ---
 sections/hero.liquid merge=ours
@@ -56,6 +53,7 @@ locales/en.default.json merge=ours
 locales/en.default.schema.json merge=ours
 
 # --- Snippets: header, cart, product card, design tokens ---
+snippets/stylesheets.liquid merge=ours
 snippets/theme-styles-variables.liquid merge=ours
 snippets/fonts.liquid merge=ours
 snippets/color-schemes.liquid merge=ours
@@ -71,3 +69,9 @@ snippets/quick-add-modal.liquid merge=ours
 snippets/variant-swatches.liquid merge=ours
 snippets/add-to-cart-button.liquid merge=ours
 snippets/product-information-content.liquid merge=ours
+
+# --- Rocky-owned assets (net-new; no upstream conflict) ---
+# These files do not exist in upstream Horizon and are fully ours.
+# Listed here for documentation — merge=ours is not strictly needed
+# but makes intent explicit if filenames ever collide in future Horizon versions.
+assets/r-base.css merge=ours

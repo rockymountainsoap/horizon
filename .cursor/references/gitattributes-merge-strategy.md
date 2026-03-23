@@ -28,7 +28,8 @@ Mapped to the Phase 1 workback plan so only files we intentionally customize are
 | **Journal / Content** | `main-blog*`, `featured-blog-posts`, `main-page`, `main-404`, `search-results` | Journal index, article template, pages, 404, search (WS 4). |
 | **Templates** | `templates/*.json` (index, 404, product, collection, cart, blog, article, search, page, page.contact) | Section order and settings per page type; editor/customizations live here. |
 | **Locale** | `locales/en.default.json`, `locales/en.default.schema.json` | Primary language copy and schema labels. |
-| **Snippets** | `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `variant-swatches`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens and high-touch UI reused across sections. |
+| **Snippets** | `stylesheets.liquid`, `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `variant-swatches`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens, stylesheet loader (`r-base.css` is registered here), and high-touch UI reused across sections. |
+| **Rocky assets** | `assets/r-base.css` | Rocky-owned; no upstream equivalent. Listed for explicit intent. |
 
 ## Adding or Removing Paths
 

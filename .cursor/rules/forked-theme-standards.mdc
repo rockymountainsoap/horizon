@@ -1,0 +1,576 @@
+---
+description: Guiding principles for building on the Rocky fork of Shopify Horizon. Applies to all agentic and developer work in this codebase.
+globs:
+alwaysApply: true
+---
+
+# Rocky × Horizon — Forked Theme Development Standards
+
+This is a **managed fork** of Shopify's Horizon theme. Upstream Horizon receives ongoing updates. Every decision made here must balance Rocky customization with the ability to pull those updates cleanly.
+
+---
+
+## 1. The Core Rule: Net-New Files First
+
+Before touching any file that exists in the upstream Horizon codebase, ask: _can this be accomplished in a new file instead?_
+
+| Situation | Correct approach |
+|---|---|
+| New page section | Create `sections/r-*.liquid` |
+| New reusable UI block | Create `blocks/r-*.liquid` |
+| New shared snippet | Create `snippets/r-*.liquid` |
+| New JS behaviour | Create `assets/r-*.js` |
+| CSS shared across Rocky sections/blocks | Add to `assets/r-base.css` |
+| Extending an upstream section | ⚠️ Prefer `sections/r-*` using `{% content_for 'blocks' %}` instead |
+| New page-type layout | Create an alternate template e.g. `templates/product.r-pdp.json` |
+| Fixing a bug in an upstream file | Acceptable — register in `.gitattributes` as `merge=ours` before editing |
+| Adjusting design tokens / colour | Edit `snippets/theme-styles-variables.liquid` (already `merge=ours`) |
+
+**Upstream files** are any that do _not_ begin with `r-` in `sections/`, `snippets/`, `blocks/`, or `assets/`.
+
+---
+
+## 2. Naming Convention — `r-` Prefix on Everything Rocky Owns
+
+All net-new files **must** use the `r-` prefix. This is the primary merge-safety mechanism: it guarantees zero naming collisions with upstream Horizon files now and in future releases.
+
+**Files:**
+
+```
+sections/r-journal-index.liquid       ✅
+sections/r-hero-campaign.liquid       ✅
+sections/hero.liquid                  ❌ upstream — do not create a duplicate
+
+blocks/r-shoppable-card.liquid        ✅
+blocks/text.liquid                    ❌ upstream — do not create a duplicate
+
+snippets/r-rewards-bar.liquid         ✅
+snippets/price.liquid                 ❌ upstream — do not duplicate
+
+assets/r-base.css                     ✅
+assets/r-store-locator.js             ✅
+assets/base.css                       ❌ upstream — do not edit
+
+templates/product.r-pdp.json          ✅  (alternate template)
+templates/product.json                ⚠️  upstream — prefer alternate instead
+```
+
+**CSS class names** (BEM, `r-` prefixed):
+
+```css
+/* ✅ */
+.r-journal-card { }
+.r-journal-card__image { }
+.r-journal-card--featured { }
+
+/* ❌ could collide with upstream or future Horizon components */
+.journal-card { }
+.card { }
+```
+
+**CSS custom properties** (scoped to element, `--r-` prefixed):
+
+```css
+/* ✅ */
+.r-journal-card {
+  --r-journal-card-gap: 1.5rem;
+  gap: var(--r-journal-card-gap);
+}
+
+/* ❌ generic names bleed into upstream token space */
+.r-journal-card {
+  --gap: 1.5rem;
+}
+```
+
+**Web component / custom element names** (`r-` prefixed):
+
+```js
+customElements.define('r-rewards-bar', RewardsBar);
+customElements.define('r-store-locator', StoreLocator);
+```
+
+```html
+<r-rewards-bar data-threshold="{{ settings.free_shipping_threshold }}">
+```
+
+---
+
+## 3. CSS Architecture
+
+### 3.1 `assets/r-base.css` — Rocky Shared Stylesheet
+
+One file for CSS shared across **two or more** Rocky sections, blocks, or snippets. It is loaded identically to `base.css` — preloaded and render-blocking — via `snippets/stylesheets.liquid`:
+
+```liquid
+{{ 'overflow-list.css' | asset_url | preload_tag: as: 'style' }}
+{{ 'base.css' | asset_url | stylesheet_tag: preload: true }}
+{{ 'r-base.css' | asset_url | stylesheet_tag: preload: true }}
+```
+
+`snippets/stylesheets.liquid` is registered in `.gitattributes` as `merge=ours`.
+
+**Belongs in `r-base.css`:**
+- Rocky design tokens (brand colours, editorial type scale) that extend but never overwrite upstream tokens
+- Utility classes used across multiple Rocky files (`.r-page-width`, `.r-sr-only`)
+- Component CSS consumed by 2+ Rocky files (e.g. a rewards progress bar used in both cart drawer and mini-cart)
+- Upstream overrides that must apply globally — with a comment explaining why
+
+**Does NOT belong in `r-base.css`:**
+- CSS for a single section or block — that goes in the file's own `{% stylesheet %}` tag
+- Arbitrary upstream class overrides without a documented reason
+
+### 3.2 Sections and Blocks Are CSS Self-Contained
+
+Every `sections/r-*.liquid` and `blocks/r-*.liquid` carries **all of its own CSS** inside `{% stylesheet %}`. Do not reach into `r-base.css` for section-specific rules.
+
+```liquid
+{%- comment -%} sections/r-journal-index.liquid {%- endcomment -%}
+
+<section class="r-journal-index" ...>
+  ...
+</section>
+
+{% stylesheet %}
+  .r-journal-index {
+    --r-journal-index-gap: 2rem;
+    display: grid;
+    gap: var(--r-journal-index-gap);
+  }
+
+  .r-journal-index__card { }
+  .r-journal-index__card--featured { }
+
+  @media screen and (min-width: 768px) {
+    .r-journal-index {
+      --r-journal-index-gap: 3rem;
+    }
+  }
+{% endstylesheet %}
+```
+
+### 3.3 Never Edit `assets/base.css`
+
+`base.css` is upstream. Override globally in `r-base.css` with an explanatory comment:
+
+```css
+/* Override: upstream .page-width is 1400px — Rocky brand standard is 1360px */
+.page-width {
+  max-width: 136rem;
+}
+```
+
+---
+
+## 4. Template Alternates — Prefer These Over Editing Upstream Templates
+
+Shopify supports **alternate templates** (`templates/product.r-*.json`). Use them instead of editing the upstream templates whenever a page needs a Rocky-specific layout.
+
+```
+templates/product.r-pdp.json      ← full Rocky PDP layout
+templates/page.r-natural.json     ← "Natural" funnel page
+templates/page.r-about.json       ← "About Us" page
+templates/page.r-store-locator.json
+templates/article.r-editorial.json
+templates/collection.r-journal.json
+```
+
+**Never** add Rocky sections to `templates/product.json` or other upstream templates. If an upstream template must be changed (e.g. to add a section group or global block), register it in `.gitattributes` as `merge=ours` first.
+
+Assign alternates to specific pages/products in the Shopify admin or via `config/settings_data.json`.
+
+---
+
+## 5. Modifying Upstream Files — Protocol
+
+When touching an upstream file is genuinely the only path:
+
+1. **Register in `.gitattributes` first:**
+   ```
+   sections/product-information.liquid merge=ours
+   ```
+2. **Add to the reference table** in `.cursor/references/gitattributes-merge-strategy.md`.
+3. **Mark every Rocky addition** with an inline Liquid comment so they are easy to locate during upstream diffs:
+   ```liquid
+   {%- # r: tagline metafield added below product title -%}
+   {% if product.metafields.rocky.tagline != blank %}
+     <p class="r-product-tagline">{{ product.metafields.rocky.tagline }}</p>
+   {% endif %}
+   ```
+   Use `{%- # r: ... -%}` — this is valid Liquid inline comment syntax.
+4. During upstream updates, diff the upstream file against ours, cherry-pick any bug fixes, and preserve the `r:` marked additions.
+
+---
+
+## 6. Sections — Required Structure for `r-*` Files
+
+### File Naming
+
+```
+sections/r-{area}-{descriptor}.liquid
+```
+
+Examples: `r-hero-campaign.liquid`, `r-pdp-routine-guide.liquid`, `r-journal-article.liquid`, `r-store-locator.liquid`
+
+### Section Template
+
+```liquid
+{%- comment -%}
+  Section: {Human name}
+  Workstream: WS {N} — {Name}
+  Description: {One-line purpose}
+{%- endcomment -%}
+
+<section
+  id="{{ section.settings.custom_id | default: section.id }}"
+  class="r-{name}"
+  style="
+    --r-{name}-pt: {{ section.settings.padding_top }}px;
+    --r-{name}-pb: {{ section.settings.padding_bottom }}px;
+  "
+>
+  <div class="r-page-width">
+    {% content_for 'blocks' %}
+  </div>
+</section>
+
+{% stylesheet %}
+  .r-{name} {
+    padding-block-start: var(--r-{name}-pt, 4rem);
+    padding-block-end: var(--r-{name}-pb, 4rem);
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_{name}",
+  "tag": "section",
+  "blocks": [{ "type": "@theme" }, { "type": "@app" }],
+  "settings": [
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "t:settings.padding_top",
+      "min": 0, "max": 120, "step": 4, "default": 64, "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "t:settings.padding_bottom",
+      "min": 0, "max": 120, "step": 4, "default": 64, "unit": "px"
+    }
+  ],
+  "presets": [{ "name": "t:names.r_{name}" }]
+}
+{% endschema %}
+```
+
+### Schema Translation Keys
+
+Every Rocky section/block name and its setting labels must be added to `locales/en.default.schema.json`. Both locale files are `merge=ours`.
+
+```json
+{
+  "names": {
+    "r_journal_index": "Rocky — Journal Index",
+    "r_hero_campaign": "Rocky — Hero Campaign"
+  }
+}
+```
+
+Always prefix the human-readable name with `Rocky — ` so Rocky sections group visually and alphabetically in the theme editor, clearly separate from upstream blocks.
+
+---
+
+## 7. Locale Keys — `rocky.*` Namespace
+
+All Rocky storefront copy goes into `locales/en.default.json` under a top-level `rocky` namespace. Never mix Rocky keys into upstream namespaces.
+
+```json
+{
+  "rocky": {
+    "journal": {
+      "read_more": "Read More",
+      "back_to_journal": "Back to Journal"
+    },
+    "cart": {
+      "rewards_bar_threshold": "You're {{ amount }} away from free shipping!"
+    },
+    "store_locator": {
+      "find_store": "Find a Store",
+      "my_store": "My Store"
+    }
+  }
+}
+```
+
+Reference in Liquid:
+
+```liquid
+{{ 'rocky.journal.read_more' | t }}
+```
+
+---
+
+## 8. Metafields and Metaobjects
+
+All Rocky-specific metafield definitions must use the **`rocky`** namespace in Shopify admin. Reference them in Liquid as:
+
+```liquid
+{{ product.metafields.rocky.tagline }}
+{{ product.metafields.rocky.routine_step }}
+{{ article.metafields.rocky.campaign_issue }}
+```
+
+Metaobject definition names must be prefixed `rocky_`:
+
+```
+rocky_campaign_issue
+rocky_store_location
+rocky_ingredient
+```
+
+Never reuse or overwrite upstream metafield namespaces (e.g. `shopify.*`, `descriptors.*`).
+
+---
+
+## 9. Section Groups — Do Not Modify
+
+`sections/header-group.json` and `sections/footer-group.json` are upstream files that control which sections appear in which editor zones. Do not modify them.
+
+- Add Rocky header/footer variations through alternate templates or by composing Rocky sections inside the existing header/footer sections using `{% content_for 'blocks' %}`.
+- If a new section group is genuinely required, create `sections/r-{name}-group.json` and register it in `layout/theme.liquid` via `{% sections 'r-{name}-group' %}` (which is already `merge=ours`).
+
+---
+
+## 10. App Integrations (Loop, Judge.me, Klaviyo)
+
+When embedding third-party app functionality:
+
+- **Use app blocks** (`{ "type": "@app" }` in section schemas) within Rocky sections — never embed app JS/Liquid snippets directly into upstream files.
+- **Loop Subscription Widget:** Render inside `r-pdp-buy-button.liquid` or equivalent Rocky block. Custom CSS lives in the section's `{% stylesheet %}` to override Loop's default styles to match Horizon tokens.
+- **Judge.me:** Use as app blocks within `r-pdp-social-proof.liquid`. Never add Judge.me render tags to upstream `sections/product-information.liquid` unless unavoidable (if so, use the upstream modification protocol in §5).
+- **Klaviyo:** Add Klaviyo form app blocks to Rocky sections. Script loading (if required globally) goes in `snippets/scripts.liquid` — which is **not** currently in `.gitattributes`, so register it there first.
+
+---
+
+## 11. JavaScript — Rocky JS Stays Separate
+
+Rocky JS lives in `assets/r-*.js`. Never add Rocky code to upstream asset files.
+
+Load it from within the section or layout that needs it:
+
+```liquid
+{{- 'r-store-locator.js' | asset_url | script_tag -}}
+```
+
+Or deferred for below-fold content:
+
+```html
+<script src="{{ 'r-journal.js' | asset_url }}" defer></script>
+```
+
+**Custom elements** must use the `r-` prefix:
+
+```js
+// assets/r-store-locator.js
+import { Component } from '@theme/component';
+
+class StoreLocator extends Component {
+  // ...
+}
+
+customElements.define('r-store-locator', StoreLocator);
+```
+
+Follow all rules in `javascript-standards.mdc`: `Component` framework, no `console.log` in production, async/await, JSDoc types.
+
+---
+
+## 12. Upstream Update Protocol
+
+When Shopify releases a new Horizon version:
+
+1. **Create a staging branch** — pull upstream into it, never directly into the working branch.
+2. **Diff all `merge=ours` files** against the new upstream versions:
+   - Cherry-pick upstream bug fixes into our versions of those files.
+   - Look for new schema settings, new snippet utilities, new JS patterns worth adopting.
+3. **Audit `{%- # r: ... -%}` markers** in any upstream file we touched — ensure Rocky additions survive and still make sense against the new upstream code.
+4. **Pull in non-conflicting files freely** — any upstream file we have not customised (not in `.gitattributes`) can be accepted as-is.
+5. **Test in a development/preview theme** via `shopify theme dev` or a duplicate theme before merging to main.
+6. **Update `.gitattributes`** if new files were customized during this cycle.
+
+---
+
+## 13. Deploy Discipline
+
+- **Never push directly to the live theme** during active development. Use `shopify theme dev` for local preview, or duplicate the theme in the Shopify admin and push to the copy.
+- Use `shopify theme push --development` to push to the development theme.
+- Gate production pushes behind at least one full cross-browser review on a preview theme.
+
+---
+
+## 14. Colour Schemes
+
+### How the Horizon Scheme System Works
+
+Horizon's colour system is **context-driven via CSS custom properties**. Understanding this is essential before writing any colour-related code.
+
+1. `config/settings_data.json` stores the palette for every scheme under `color_schemes`.
+2. `snippets/color-schemes.liquid` loops over them at render time and emits a scoped CSS block for each:
+   ```css
+   :root, .color-scheme-1 { --color-background: #fff; --color-foreground: …; /* ~35 tokens */ }
+   .color-scheme-2         { --color-background: #f5f5f5; … }
+   .color-scheme-3         { --color-background: #1c1c1c; … }
+   ```
+   The **first scheme** also applies to `:root` — making it the global page default.
+3. A section applies a scheme by adding `color-{{ section.settings.color_scheme }}` to its root element's class. Every descendant — buttons, inputs, swatches, prices — automatically inherits the right tokens via CSS cascade.
+4. Upstream components **only ever reference semantic tokens** (`var(--color-background)`, `var(--color-foreground)`, `var(--color-primary)`, etc.) — never raw colour values.
+
+### Rocky's Scheme Strategy: 3 Schemes, Repurpose the First 3 IDs
+
+Rocky uses exactly **3 colour schemes**. Rather than creating new IDs, repurpose `scheme-1`, `scheme-2`, and `scheme-3` with Rocky's palette. Keeping the existing IDs ensures all upstream section defaults (`"default": "scheme-1"` etc.) remain valid with zero changes.
+
+| Scheme ID | Rocky name | Intended use |
+|---|---|---|
+| `scheme-1` | **Rocky Light** | Primary surface — white/clean, main commerce pages |
+| `scheme-2` | **Rocky Dark** | Inverse — hero sections, feature callouts, dark bars |
+| `scheme-3` | **Rocky Journal** | Editorial — warm off-white/natural, Journal mode surfaces |
+
+Configure these colour values in the Shopify admin Theme Editor (Settings → Colours). The values are saved to `config/settings_data.json`, which is `merge=ours`.
+
+**Remove schemes 4–6** from `settings_data.json` — they add noise to the theme editor and are not needed. Any upstream section preset that references `scheme-4` or higher will fall back to the `:root` default (`scheme-1`).
+
+### Applying Schemes in Rocky Sections
+
+Scheme support is identical for `r-*` sections and upstream sections:
+
+**Schema setting** (add to every section that supports scheme switching):
+```json
+{
+  "type": "color_scheme",
+  "id": "color_scheme",
+  "label": "t:settings.color_scheme",
+  "default": "scheme-1"
+}
+```
+
+**Root element class**:
+```liquid
+<section
+  class="r-hero-campaign color-{{ section.settings.color_scheme }}"
+  …
+>
+```
+
+Child elements use upstream tokens — no Rocky-specific tokens needed for standard colour roles:
+```css
+.r-hero-campaign__title  { color: var(--color-foreground-heading); }
+.r-hero-campaign__body   { color: var(--color-foreground); }
+.r-hero-campaign         { background: var(--color-background); }
+```
+
+### Extending Schemes with Rocky-Specific Tokens
+
+Horizon's ~35 tokens cover standard commerce UI. Rocky surfaces (Journal editorial, brand Canmore tan, etc.) need additional tokens that have no upstream equivalent. Do **not** add these to `settings_schema.json` — that is an upstream file.
+
+Instead, hang them off the same `.color-scheme-*` class in `assets/r-base.css`. This keeps them in sync with whichever scheme is active:
+
+```css
+/* r-base.css */
+
+/* Rocky Light (scheme-1) */
+.color-scheme-1 {
+  --r-surface-subtle:      #f8f6f2;
+  --r-color-journal-bg:   #f5f0e8;
+  --r-color-brand-accent:  #c4a882; /* Canmore tan */
+  --r-color-brand-primary: #2b2b2b;
+}
+
+/* Rocky Dark (scheme-2) */
+.color-scheme-2 {
+  --r-surface-subtle:      #1a1a1a;
+  --r-color-journal-bg:   #201e1b;
+  --r-color-brand-accent:  #d4b892;
+  --r-color-brand-primary: #f5f5f5;
+}
+
+/* Rocky Journal (scheme-3) */
+.color-scheme-3 {
+  --r-surface-subtle:      #ede8df;
+  --r-color-journal-bg:   #e8e0d3;
+  --r-color-brand-accent:  #8b6a45;
+  --r-color-brand-primary: #1c1c1c;
+}
+```
+
+Rocky sections then consume these alongside upstream tokens:
+```css
+.r-journal-card {
+  background: var(--r-color-journal-bg);  /* Rocky-specific */
+  color: var(--color-foreground);          /* Upstream token  */
+  border-color: var(--color-border);       /* Upstream token  */
+}
+```
+
+### Rules for Colour in Rocky Components
+
+- **Always use tokens, never raw hex values** in `{% stylesheet %}` or `r-base.css`
+- **Use upstream tokens first** — only reach for `--r-*` tokens when there is no upstream equivalent
+- **Never define `--color-*` custom properties** (upstream namespace) in Rocky files — that would silently override upstream tokens
+- **Rocky-specific extra tokens must be scoped to `.color-scheme-*` classes** in `r-base.css`, not `:root`, so they stay in sync with the active scheme
+- **Scheme-independent brand tokens** (e.g. a fixed logo colour that never changes with scheme) are the only `--r-*` values that belong on `:root` in `r-base.css`
+
+### Scheme Inheritance in Nested Blocks
+
+Horizon blocks support `inherit_color_scheme`. When a block's `inherit_color_scheme` is `true`, it takes the colour context from its parent section. Rocky blocks should follow the same pattern:
+
+```json
+{
+  "type": "checkbox",
+  "id": "inherit_color_scheme",
+  "label": "t:settings.inherit_color_scheme",
+  "default": true
+},
+{
+  "type": "color_scheme",
+  "id": "color_scheme",
+  "label": "t:settings.color_scheme",
+  "default": "scheme-1",
+  "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+}
+```
+
+```liquid
+<div
+  class="r-my-block{% unless block.settings.inherit_color_scheme %} color-{{ block.settings.color_scheme }}{% endunless %}"
+  …
+>
+```
+
+---
+
+## 15. Quick-Reference: What Not to Do
+
+| ❌ Don't | ✅ Do instead |
+|---|---|
+| Edit `assets/base.css` | Override globally in `assets/r-base.css` |
+| Create files without `r-` prefix | Always prefix Rocky-owned files |
+| Duplicate an upstream section file | Create `sections/r-*` and compose with blocks |
+| Edit upstream templates directly | Create `templates/product.r-*.json` alternates |
+| Use upstream CSS class names as BEM roots | Prefix all Rocky BEM roots with `r-` |
+| Use `--` or generic CSS variable names | Prefix Rocky variables with `--r-` |
+| Add Rocky copy to upstream locale namespaces | Add under `rocky.*` in locale files |
+| Add metafields to any namespace but `rocky` | Use `rocky` metafield namespace in admin |
+| Write Rocky JS inside upstream `.js` assets | Use `assets/r-*.js` |
+| Define custom elements without `r-` prefix | Use `customElements.define('r-*', ...)` |
+| Embed app scripts in upstream files | Use app blocks in Rocky sections |
+| Modify `sections/header-group.json` | Compose through sections or create `r-*-group.json` |
+| Use `{# Rocky: #}` in Liquid | Use valid `{%- # r: description -%}` syntax |
+| Skip `.gitattributes` when editing upstream | Always register the file before editing |
+| Push changes directly to the live theme | Use dev/preview themes; gate production pushes |
+| Hardcode hex values in CSS | Always use `var(--color-*)` or `var(--r-*)` tokens |
+| Define `--color-*` variables in Rocky files | Those are upstream-owned; use `--r-*` prefix |
+| Add extra scheme tokens to `:root` | Scope them to `.color-scheme-*` in `r-base.css` |
+| Create new scheme IDs (scheme-4+) | Repurpose scheme-1/2/3 with Rocky palette |
+| Add scheme settings to `settings_schema.json` | Rocky extra tokens go in `r-base.css` |
