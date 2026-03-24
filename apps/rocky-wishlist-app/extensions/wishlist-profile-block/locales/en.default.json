@@ -1,0 +1,8 @@
+{
+  "heading": "My Wishlist",
+  "viewWishlist": "View wishlist",
+  "loading": "Loading...",
+  "emptySubtitle": "No saved products yet",
+  "countSubtitle": "{{count}} saved products",
+  "configurePath": "Set “Wishlist page path” in this block’s settings to add a link button."
+}

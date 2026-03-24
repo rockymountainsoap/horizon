@@ -1,0 +1,45 @@
+.wishlist-wrapper {
+  display: inline-flex;
+}
+
+.wishlist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.wishlist-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition:
+    fill 0.15s ease,
+    stroke 0.15s ease;
+  pointer-events: none;
+}
+
+.wishlist-btn--active svg {
+  fill: var(--wishlist-active-color, #8b5e3c);
+  stroke: var(--wishlist-active-color, #8b5e3c);
+}
+
+.wishlist-btn--loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.wishlist-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

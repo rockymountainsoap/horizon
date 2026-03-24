@@ -1,0 +1,8 @@
+api_version = "2025-04"
+
+[[extensions]]
+type = "theme"
+name = "Wishlist Button"
+handle = "wishlist-button"
+
+# UID is injected by `shopify app dev` / `shopify app deploy` if omitted.

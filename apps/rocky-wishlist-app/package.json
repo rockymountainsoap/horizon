@@ -1,0 +1,11 @@
+{
+  "name": "rocky-wishlist-app",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "extensions/*"
+  ],
+  "scripts": {
+    "shopify": "shopify"
+  }
+}

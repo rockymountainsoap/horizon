@@ -38,7 +38,11 @@ All other rules in `.cursor/rules/` apply to their respective file types. The fo
 ## Repository Layout
 
 ```
-horizon/
+horizon/                    # repo root = Horizon theme (Rocky fork)
+├── apps/                 # Shopify app(s) — not theme code
+│   └── rocky-wishlist-app/  # Shopify app; extensions live here
+├── workers/              # Edge workers (e.g. Cloudflare) — not theme code
+│   └── native_worker/    # Wishlist API entry: native_worker.js
 ├── assets/           # CSS, JS, images
 │   ├── base.css          ← UPSTREAM — do not edit
 │   ├── r-base.css        ← Rocky shared stylesheet (Rocky-owned)
@@ -68,11 +72,46 @@ horizon/
 ├── .gitattributes        ← Merge strategy (keep reading)
 ├── .cursor/
 │   ├── rules/            ← All cursor rules (MDC files)
-│   └── references/       ← Living reference documents
+│   ├── references/     ← Living reference documents
+│   └── plan/             ← Workstream plans (WS-prefixed filenames; see below)
 └── AGENTS.md             ← This file
 ```
 
 **Rocky-owned files are always prefixed `r-`.** Any file without that prefix is upstream Horizon. Never create a non-`r-` file in `sections/`, `blocks/`, `snippets/`, or `assets/`.
+
+**Monorepo:** **`apps/`** is for the Shopify app (`rocky-wishlist-app` and its `extensions/`, including `customer-account-wishlist`). **`workers/native_worker/`** holds the Cloudflare Worker entry **`native_worker.js`**. Those trees are not Horizon theme files — see `apps/README.md` and `workers/README.md`. WS0 native wishlist is scaffolded there; run `shopify app dev` from `apps/rocky-wishlist-app` after filling `shopify.app.toml` and deploying the Worker.
+
+---
+
+## Plan documents (workstreams)
+
+Planning docs, work-back notes, and agent-oriented task breakdowns belong in **`.cursor/plan/`** — keep them out of the theme root and out of ad-hoc folders so agents and humans can find context quickly.
+
+**Location:** `.cursor/plan/`
+
+**Naming — WS (workstream) prefix**
+
+- Start every filename with the workstream ID so files sort and group by program phase: **`WS0-`**, **`WS1-`**, **`WS2-`**, etc. (align numbering with your roadmap, e.g. WS 0 Core shell, WS 1 Global Nav).
+- Follow the prefix with a short **kebab-case** slug describing the doc.
+
+**Examples**
+
+```
+.cursor/plan/
+├── WS0-theme-shell.md
+├── WS1-global-navigation.md
+├── WS2-homepage-plp-pdp.md
+├── WS4-journal-content.md
+└── WS6-data-qa.md
+```
+
+For related docs under one WS, keep the same prefix and vary the slug: `WS2-plp-audit.md`, `WS2-pdp-implementation.md`.
+
+**Workflow**
+
+- When starting or updating a workstream, add or revise its plan here.
+- Before implementing WS-scoped work, agents should check `.cursor/plan/` for the relevant **`WS*`** file(s).
+- Link to these files from issues or PRs when helpful.
 
 ---
 
@@ -310,3 +349,4 @@ These rules apply automatically to their respective file types. The forked-theme
 | Can I add custom elements without `r-` prefix? | No — always `customElements.define('r-*', ...)` |
 | I need to modify upstream — what first? | Add to `.gitattributes` + reference doc, then edit with `{%- # r: -%}` markers |
 | Where do Rocky metafields live? | `rocky` namespace in Shopify admin |
+| Where do planning / workstream docs go? | `.cursor/plan/` with a **`WS*`** workstream prefix on each filename (e.g. `WS3-pdp-routine.md`) |

@@ -1,0 +1,40 @@
+# WS0 native wishlist — Cloudflare Worker (App Proxy target)
+# 1. Create KV: wrangler kv namespace create NONCE_KV
+# 2. Paste id below; set SHOP_DOMAIN / SHOP_MYSHOPIFY_DOMAIN for your store
+# 3. wrangler secret put SHOPIFY_ADMIN_TOKEN | SHOPIFY_PROXY_SECRET | SHOPIFY_STOREFRONT_TOKEN
+# Rate limit bindings require a paid CF plan — omit [[unsafe.bindings]] locally; worker skips if unset
+
+name = "rmsc-wishlist-worker"
+main = "native_worker.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SHOP_DOMAIN = "example.com"
+SHOP_MYSHOPIFY_DOMAIN = "your-store.myshopify.com"
+MAX_WISHLIST_SIZE = "250"
+HMAC_MAX_AGE_SECONDS = "300"
+
+# Uncomment after creating the namespace:
+# [[kv_namespaces]]
+# binding = "NONCE_KV"
+# id = "YOUR_KV_NAMESPACE_ID"
+
+# Uncomment on plans with Rate Limiting API (paid):
+# [[unsafe.bindings]]
+# name = "WISHLIST_RATE_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1001"
+# simple = { limit = 20, period = 60 }
+#
+# [[unsafe.bindings]]
+# name = "IP_RATE_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1002"
+# simple = { limit = 60, period = 60 }
+
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+vars = { ENVIRONMENT = "staging" }

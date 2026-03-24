@@ -1,0 +1,9 @@
+{
+  "heading": "My Wishlist",
+  "empty": "You haven't saved any products yet.",
+  "startShopping": "Start shopping",
+  "remove": "Remove",
+  "viewProduct": "View product",
+  "outOfStock": "Out of stock",
+  "loadError": "Failed to load your wishlist. Please refresh."
+}

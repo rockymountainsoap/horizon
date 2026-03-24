@@ -1,0 +1,21 @@
+api_version = "2025-04"
+
+[[extensions]]
+name = "Wishlist Profile Block"
+handle = "wishlist-profile-block"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/ProfileBlockExtension.jsx"
+target = "customer-account.profile.block.render"
+
+[extensions.capabilities]
+api_access = true
+
+[extensions.settings]
+
+[[extensions.settings.fields]]
+key = "wishlist_path"
+type = "single_line_text_field"
+name = "Wishlist page path"
+description = "Path to your full-page wishlist (from Customer Account editor preview URL), e.g. the path after your store domain."

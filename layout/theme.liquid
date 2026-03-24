@@ -132,5 +132,8 @@
     {% if settings.quick_add or settings.mobile_quick_add %}
       {% render 'quick-add-modal' %}
     {% endif %}
+
+    {%- # r: WS0 native wishlist — guest list merge on login -%}
+    {% render 'r-wishlist-init' %}
   </body>
 </html>

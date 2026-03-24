@@ -1,0 +1,38 @@
+{%- comment -%}
+  r: WS0 native wishlist — merge guest localStorage into customer metafield after login (App Proxy).
+{%- endcomment -%}
+{% if customer %}
+  <script>
+    (function () {
+      var STORAGE_KEY = 'rmsc_wishlist_guest';
+      var local;
+      try {
+        local = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch (e) {
+        return;
+      }
+      if (!local.length) return;
+
+      fetch('/apps/wishlist/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ local: local }),
+      })
+        .then(function (r) {
+          return r.json();
+        })
+        .then(function (data) {
+          if (data.ok) {
+            localStorage.removeItem(STORAGE_KEY);
+            document.dispatchEvent(
+              new CustomEvent('wishlist:synced', {
+                detail: { list: data.list },
+                bubbles: true,
+              })
+            );
+          }
+        })
+        .catch(function () {});
+    })();
+  </script>
+{% endif %}

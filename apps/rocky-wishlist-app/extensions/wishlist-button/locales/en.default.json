@@ -1,0 +1,9 @@
+{
+  "name": "Wishlist Button",
+  "add_to_wishlist": "Add to wishlist",
+  "save": "Save",
+  "saved": "Saved",
+  "settings": {
+    "show_label": "Show label text"
+  }
+}

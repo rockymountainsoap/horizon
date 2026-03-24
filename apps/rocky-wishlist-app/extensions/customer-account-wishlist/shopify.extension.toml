@@ -1,0 +1,14 @@
+api_version = "2025-04"
+
+[[extensions]]
+name = "My Wishlist"
+handle = "customer-account-wishlist"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/FullPageExtension.jsx"
+target = "customer-account.page.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true
