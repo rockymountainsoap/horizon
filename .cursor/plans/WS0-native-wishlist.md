@@ -314,7 +314,7 @@ rmsc-wishlist/
 ### 5.2 `wrangler.toml`
 
 ```toml
-name = "rmsc-wishlist-worker"
+name = "native-wishlist-worker"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]

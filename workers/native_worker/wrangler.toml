@@ -4,7 +4,7 @@
 # 3. wrangler secret put SHOPIFY_ADMIN_TOKEN | SHOPIFY_PROXY_SECRET | SHOPIFY_STOREFRONT_TOKEN
 # Rate limit bindings require a paid CF plan — omit [[unsafe.bindings]] locally; worker skips if unset
 
-name = "rmsc-wishlist-worker"
+name = "native-wishlist-worker"
 main = "native_worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
