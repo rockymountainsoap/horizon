@@ -1,41 +1,34 @@
-# WS0 native wishlist — replace YOUR_CLIENT_ID and worker URL before deploy.
-# Run: shopify app config link  (or create app in Partner Dashboard and paste client_id)
+# WS0 native wishlist — Shopify app configuration.
+# Extensions + Cloudflare Worker only — no local web process.
 
 name = "rocky-wishlist-app"
 client_id = "ebe31aebe73b979149df832d1e1f17bb"
-application_url = "https://YOUR_WORKER.workers.dev"
+application_url = "https://native-wishlist-worker.rocky-mountain-soap.workers.dev"
 embedded = false
 
+web_directories = []
+
 [access_scopes]
-scopes = "read_customers,write_customers,write_app_proxy"
+scopes = "read_customers,write_customers,write_app_proxy,read_products,customer_read_customers,customer_write_customers"
 
 [auth]
 redirect_urls = [
-  "https://YOUR_WORKER.workers.dev/auth/callback"
+  "https://native-wishlist-worker.rocky-mountain-soap.workers.dev/auth/callback"
 ]
 
 [app_proxy]
-url = "https://YOUR_WORKER.workers.dev/wishlist"
+url = "https://native-wishlist-worker.rocky-mountain-soap.workers.dev/wishlist"
 prefix = "apps"
 subpath = "wishlist"
 
 [webhooks]
 api_version = "2025-04"
 
-# Point to a handler on your Worker when you implement uninstall cleanup.
+# Uncomment when implementing uninstall cleanup:
 # [[webhooks.subscriptions]]
 # topics = [ "app/uninstalled" ]
 # uri = "/webhooks/app-uninstalled"
 
 [build]
-automatically_update_urls_on_dev = true
-
-[[customer.metafields]]
-namespace = "$app:wishlist"
-key = "saved_products"
-type = "list.product_reference"
-name = "Wishlist Products"
-description = "Products saved to this customer's wishlist"
-
-[customer.metafields.access]
-customer_account = "read_write"
+automatically_update_urls_on_dev = false
+dev_store_url = "rocky-horizon-development.myshopify.com"

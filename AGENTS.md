@@ -79,7 +79,7 @@ horizon/                    # repo root = Horizon theme (Rocky fork)
 
 **Rocky-owned files are always prefixed `r-`.** Any file without that prefix is upstream Horizon. Never create a non-`r-` file in `sections/`, `blocks/`, `snippets/`, or `assets/`.
 
-**Monorepo:** **`apps/`** is for the Shopify app (`rocky-wishlist-app` and its `extensions/`, including `customer-account-wishlist`). **`workers/native_worker/`** holds the Cloudflare Worker entry **`native_worker.js`**. Those trees are not Horizon theme files — see `apps/README.md` and `workers/README.md`. WS0 native wishlist is scaffolded there; run `shopify app dev` from `apps/rocky-wishlist-app` after filling `shopify.app.toml` and deploying the Worker.
+**Monorepo:** **`apps/`** is for the Shopify app (`rocky-wishlist-app` and its `extensions/`, including `customer-account-wishlist`). **`workers/native_worker/`** holds the Cloudflare Worker entry **`native_worker.js`**. Those trees are not Horizon theme files — see `apps/README.md` and `workers/native_worker/README.md`. The Worker authenticates with the Shopify Admin API using the **Client Credentials Grant** (OAuth 2.0 §4.4) — tokens are auto-acquired and cached, no manual OAuth install step needed. See `workers/native_worker/README.md` for full setup.
 
 ---
 
@@ -285,6 +285,448 @@ Full details: `.cursor/references/gitattributes-merge-strategy.md`
 | Klaviyo | App blocks in Rocky sections; global script goes in `snippets/scripts.liquid` (register as `merge=ours` first) |
 
 General rule: `{ "type": "@app" }` in section schemas enables app blocks. Never embed third-party Liquid/JS directly into upstream files.
+
+---
+
+## Horizon Runtime Internals — Patterns Learned From WS0
+
+These patterns were discovered during the WS0 native wishlist implementation. Record new findings here immediately when discovered — do not wait to be asked.
+
+---
+
+### Horizon Morph Library (`assets/morph.js`)
+
+Horizon uses a DOM morphing library (idiomorph-based) to update sections in-place without full re-renders. Understanding its escape hatches is critical for any Rocky component whose DOM is populated at runtime.
+
+**How section re-renders work**
+
+1. An event (e.g. `cart:update`) reaches a component listener.
+2. The component calls `sectionRenderer.renderSection(sectionId, { cache: false })`.
+3. `sectionRenderer` fetches the section HTML via Shopify's Section Rendering API (`?sections=<id>`).
+4. `morphSection(sectionId, html, mode)` diffs the server-rendered HTML against the live DOM using `morph()`.
+5. Rocky components that **dynamically populate** their subtree at runtime (e.g. a wishlist item list) will be **wiped** by this morph because the server HTML for those elements is always empty.
+
+**Escape hatches (apply to the element in the Liquid template)**
+
+| Attribute | Effect |
+|---|---|
+| `data-skip-subtree-update` | Skips morphing ALL children of this element. Server HTML must also have the attribute for the skip to apply. Add it directly to the Liquid template. |
+| `data-skip-node-update` | Skips morphing the node's own attributes/content, but still morphs its children. |
+
+**When to use `data-skip-subtree-update`**
+
+Any element whose children are built entirely by JavaScript at runtime (e.g. a `<dialog>` or `<div>` whose `innerHTML` is set by a custom element's `connectedCallback` or event handlers). Add the attribute to the Liquid template so the server HTML and live DOM both carry it — the morph library checks both sides.
+
+```liquid
+{{- # Example: protect the wishlist dialog from cart section re-renders -}}
+<dialog
+  id="r-wishlist-dialog"
+  class="r-wishlist-dialog"
+  data-skip-subtree-update
+>
+  ...dynamically-rendered content...
+</dialog>
+```
+
+**Critical gotcha: cart-items-component lives inside the header section**
+
+`<cart-items-component>` (inside `snippets/header-actions.liquid`) uses `this.sectionId` = the header section's ID. When it receives `cart:update` without `sections` data, it calls `sectionRenderer.renderSection(headerSectionId)`, which morphs the **entire header section** — including anything rendered by Rocky snippets inside the header (e.g. `r-header-wishlist`). Any dynamically-inserted wishlist items will be wiped unless `data-skip-subtree-update` is present on their container.
+
+---
+
+### Horizon Event System (`assets/events.js`, `ThemeEvents`)
+
+**`ThemeEvents.cartUpdate = 'cart:update'`** is the single string used by:
+- `CartUpdateEvent` — a general cart state update
+- `CartAddEvent` — dispatched when an item is added to cart
+
+**Both classes share the same event name.** This means dispatching `new CustomEvent('cart:update', ...)` is indistinguishable from a real `CartAddEvent`.
+
+**Who listens to `cart:update`**
+
+| Listener | Behaviour |
+|---|---|
+| `cart-icon.js` | Updates the badge count via `renderCartBubble(itemCount, comingFromProductForm)`. Safe — no DOM side-effects. |
+| `cart-drawer.js` | Calls `this.showDialog()` **if the element has the `auto-open` attribute**. This opens the cart drawer on top of whatever is currently visible. |
+| `component-cart-items.js` | If `event.detail.data.sections?.[this.sectionId]` is present, morphs that section HTML. Otherwise calls `sectionRenderer.renderSection(this.sectionId, { cache: false })` — which re-fetches and morphs the header section. |
+
+**Safe pattern for dispatching `cart:update` from a Rocky component**
+
+When you need all cart components to update (icon count + cart-items refresh) **without** the cart drawer auto-opening and covering the current UI:
+
+```javascript
+const cartDrawer = document.querySelector('cart-drawer');
+const hadAutoOpen = cartDrawer?.hasAttribute('auto-open');
+if (hadAutoOpen) cartDrawer.removeAttribute('auto-open');
+
+// dispatchEvent() is synchronous — all listeners fire before this line returns.
+// cart-drawer's handler runs here and skips showDialog() because auto-open is gone.
+document.dispatchEvent(new CustomEvent('cart:update', {
+  bubbles: true,
+  detail: {
+    resource: cart,
+    sourceId: 'r-my-component',
+    data: { itemCount: cart.item_count },
+  },
+}));
+
+if (hadAutoOpen) cartDrawer.setAttribute('auto-open', '');
+```
+
+**Never dispatch `cart:update` without this guard** when the user is viewing a Rocky modal/drawer that must remain open.
+
+---
+
+### Shopify Admin API vs Storefront API — Type Differences
+
+These differ from each other in ways that cause GraphQL errors if you copy query patterns between the two.
+
+**`ProductVariant.price`**
+
+| API | Type | Query syntax |
+|---|---|---|
+| **Storefront API** | `MoneyV2` object | `price { amount currencyCode }` |
+| **Admin API** | `Money` **scalar** (plain decimal string) | `price` — no sub-selections |
+
+Selecting `price { amount currencyCode }` in the Admin API throws:
+```
+Selections can't be made on scalars (field 'price' returns Money but has selections ["amount", "currencyCode"])
+```
+
+**Admin API workaround** — get currency from the product level (which does have a `MoneyV2`-style field) and get the amount as a scalar per variant:
+
+```graphql
+query WishlistProductDetails($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on Product {
+      priceRange {
+        minVariantPrice { currencyCode }   # MoneyV2 — sub-selections work here
+      }
+      variants(first: 10) {
+        edges {
+          node {
+            price              # Money scalar — NO sub-selections
+            compareAtPrice     # Money scalar — NO sub-selections
+            availableForSale
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+In JavaScript, pass the product-level `currencyCode` when formatting variant prices:
+```javascript
+const currencyCode = product.priceRange?.minVariantPrice?.currencyCode ?? 'USD';
+const price = formatCurrency(variant.price, currencyCode); // variant.price is "12.00"
+```
+
+---
+
+### CSS `[hidden]` Attribute vs `display` Declarations
+
+The `[hidden]` HTML attribute sets `display: none` in the browser's UA stylesheet — but **without `!important`** in most modern resets. Any author CSS rule with equal or higher specificity that sets `display: anything` will override it.
+
+**Example of the bug:**
+```css
+/* Author CSS — overrides [hidden] because same specificity, later in cascade */
+.r-wishlist-dialog__loading {
+  display: flex;  /* wins over [hidden]'s display: none */
+}
+```
+
+**Fix — use a modifier class for the visible state:**
+```css
+.r-wishlist-dialog__loading {
+  display: none;        /* default hidden */
+}
+.r-wishlist-dialog__loading--visible {
+  display: flex;        /* JS adds this class to show */
+}
+```
+
+```javascript
+// In JS — toggle class instead of the hidden attribute
+this._loadingEl.classList.toggle('r-wishlist-dialog__loading--visible', isLoading);
+```
+
+Never use `element.hidden = true/false` when author CSS sets `display` on that element class.
+
+---
+
+### `renderCartBubble` — Direct Cart Icon Update
+
+`cart-icon.js` exposes `renderCartBubble(itemCount, comingFromProductForm, animate?)` as a public instance method. It can be called directly on the custom element to update the badge count without triggering any event side-effects:
+
+```javascript
+const cartIcon = /** @type {any} */ (document.querySelector('cart-icon'));
+cartIcon?.renderCartBubble?.(cart.item_count, false);
+```
+
+Use this **only** when you also need to suppress the `cart:update` event for other reasons. In most cases, use the `auto-open` guard pattern above so all components stay in sync.
+
+---
+
+### Customer Account UI Extensions — Rendering Architecture (2026-01)
+
+**API version: `2026-01`.** All Customer Account UI extensions use **Polaris web components** (`s-*` custom elements) rendered via **Preact to `document.body`** (Remote DOM). This IS the correct approach per Shopify docs.
+
+**The `reactExtension()` / React component approach (`InlineStack`, `Button`, `Page` etc. from `@shopify/ui-extensions-react`) is the LEGACY 2025 API. Do NOT use it for new extensions.**
+
+---
+
+#### How Remote DOM Extensions Work — The Full Pipeline
+
+The extension runs in a **Web Worker sandbox**. Understanding the full pipeline from source to execution is critical:
+
+**1. Build time (Shopify CLI `shopify app build`):**
+
+The CLI checks `api_version` in `shopify.extension.toml`. If `api_version >= 2025-10`, it treats the extension as a **Remote DOM extension** and generates a virtual entry point:
+
+```javascript
+// CLI-generated stdin entry for esbuild (you never see this file):
+import Target_0 from './src/FullPageExtension.jsx';
+shopify.extend('customer-account.page.render', (...args) => Target_0(...args));
+```
+
+If `api_version < 2025-10`, the CLI generates a **bare import** instead:
+```javascript
+import './src/FullPageExtension.jsx';  // no shopify.extend wrapper!
+```
+
+**⚠️ CRITICAL: `api_version` must be `2025-10` or later** for Remote DOM extensions. With older versions:
+- The CLI's bare import doesn't consume `export default` → esbuild tree-shakes it → blank extension
+- Manual `shopify.extend()` in your source runs, but the runtime doesn't set up Remote DOM → `document is not defined`
+
+**2. Runtime (in the browser):**
+
+1. Shopify Worker sandbox `eval()`'s the IIFE bundle — `shopify` global exists, `document` does NOT
+2. The CLI-generated `shopify.extend()` call registers our callback — observable side effect, cannot be tree-shaken
+3. Shopify runtime sets up **Remote DOM** — creates `document` in the Worker scope
+4. Runtime calls the registered callback — our `export default` function runs, `document.body` is now available
+5. Preact's `render()` mounts the component tree into the Remote DOM root
+
+**3. Correct 2025-10+ Pattern:**
+
+```jsx
+/** @jsxImportSource preact */
+import '@shopify/ui-extensions/preact'; // side-effect: registers @preact/signals
+import { render } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
+
+function MyExtension() {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    fetch('shopify://customer-account/api/2025-10/graphql.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: '{ customer { firstName } }' }),
+    })
+      .then((r) => r.json())
+      .then(({ data }) => setData(data.customer.firstName));
+  }, []);
+
+  return (
+    <s-page heading={shopify.i18n.translate('heading')}>
+      <s-section>
+        <s-text>{data ?? '…'}</s-text>
+      </s-section>
+    </s-page>
+  );
+}
+
+// The CLI wraps this with shopify.extend() automatically — do NOT add shopify.extend() manually.
+// document.body is available inside this callback because the runtime sets up Remote DOM first.
+export default async () => {
+  render(<MyExtension />, document.body);
+};
+```
+
+**`shopify.extension.toml` must have:**
+```toml
+api_version = "2025-10"   # MINIMUM for Remote DOM — do NOT use 2025-04
+```
+
+**Things that DON'T work:**
+
+| Approach | Why it fails |
+|---|---|
+| `render(<App />, document.body)` at module top level | `document is not defined` — Remote DOM not set up at eval time |
+| `export default` with `api_version < 2025-10` | CLI generates bare import → default export not consumed → tree-shaken away → blank |
+| Manual `shopify.extend()` with `api_version < 2025-10` | Callback runs but runtime doesn't set up Remote DOM → `document is not defined` |
+| Manual `shopify.extend()` with `api_version >= 2025-10` | Double registration — CLI also generates `shopify.extend()` wrapper |
+
+#### Component Reference (`s-*` Polaris Web Components)
+
+All available components use the `s-` prefix. Common ones for the wishlist:
+
+| Component | Usage |
+|---|---|
+| `<s-page heading="...">` | Page layout wrapper |
+| `<s-section heading="...">` | Content section within a page |
+| `<s-stack direction="block\|inline" gap="base\|small">` | Flex-like stack layout |
+| `<s-grid grid-template-columns="..." gap="base">` | CSS grid layout |
+| `<s-grid-item>` | Grid cell |
+| `<s-text>` / `<s-text type="strong">` | Body text / bold text |
+| `<s-heading>` | Section heading |
+| `<s-image src="..." alt="..." aspect-ratio="1">` | Image |
+| `<s-button href="...">` | Link button |
+| `<s-button variant="secondary" onClick={fn}>` | Action button |
+| `<s-badge tone="warning\|critical">` | Status badge |
+| `<s-banner tone="critical\|info">` | Alert banner |
+| `<s-skeleton-paragraph>` | Loading placeholder |
+| `<s-spinner>` | Loading spinner |
+| `<s-link href="shopify:customer-account/orders">` | Navigation link |
+
+#### API Access
+
+| Need | Correct approach |
+|---|---|
+| Customer metafields (read/write) | `fetch('shopify://customer-account/api/2025-10/graphql.json', {...})` |
+| Storefront API (products, etc.) | `await shopify.query('query { nodes(ids:...) { ... } }', { variables: {...} })` |
+| i18n | `shopify.i18n.translate('key')` / `shopify.i18n.formatCurrency(...)` |
+| Extension settings | `shopify.settings?.my_setting_key` |
+
+#### Key Bug: `customerAccountGraphql()` Variables Double-Nesting
+
+The helper function `customerAccountGraphql(query, variables)` serialises `{ query, variables }` into the request body. If you call it with `customerAccountGraphql(query, { variables: { metafields: [...] } })`, the body becomes `{ query, variables: { variables: { metafields: [...] } } }` — GraphQL can't find `$metafields` and returns "was provided invalid value".
+
+**Correct:**
+```javascript
+await customerAccountGraphql(mutationQuery, { metafields: [...] });
+```
+
+**Wrong (double-nesting):**
+```javascript
+await customerAccountGraphql(mutationQuery, { variables: { metafields: [...] } });
+```
+
+#### Key Bug: `s-grid` Is Not Production-Ready ("Coming Soon")
+
+The official Polaris docs list `s-grid` as **"coming soon"**. The runtime sets `grid-template-columns` to `none` regardless of the value — including responsive `@container` syntax. This renders as a single-column stacked layout.
+
+**Do not use `s-grid` / `s-grid-item`.** Use `s-stack direction="inline"` with `s-box` children instead. `s-stack direction="inline"` auto-wraps when space is limited, giving a natural multi-column feel:
+
+```jsx
+// ✅ Correct — s-stack inline wraps items naturally
+<s-stack direction="inline" gap="base">
+  {products.map((p) => (
+    <s-box key={p.id}>
+      <s-stack direction="block" gap="small">
+        {/* card content */}
+      </s-stack>
+    </s-box>
+  ))}
+</s-stack>
+
+// ❌ Wrong — s-grid sets columns to `none`, renders as 1 column
+<s-grid grid-template-columns="1fr 1fr" gap="base">
+  {products.map((p) => <s-grid-item key={p.id}>...</s-grid-item>)}
+</s-grid>
+```
+
+#### Key Bug: Customer Account Extension Cannot Write to `$app` Namespace
+
+The `$app` metafield namespace is **app-owned and write-protected**. The Customer Account API's `metafieldsSet` mutation rejects writes to it from extensions with:
+> "Access to this namespace and key on Metafields for this resource type is not allowed."
+
+**Reads work** (the extension can read `customer { metafield(namespace: "$app", ...) }`), but **writes must go through the Worker** which has Admin API access.
+
+---
+
+#### App Proxy Cannot Be Used from Customer Account Extensions
+
+**DO NOT** route extension writes through the App Proxy URL (`{storeUrl}/apps/wishlist/...`). Shopify's App Proxy returns `302 Found` for any cross-origin request that lacks a storefront session cookie. Extensions run on `https://extensions.shopifycdn.com` and cannot provide a storefront cookie. The 302'd response also lacks CORS headers, so the browser fails with:
+> "No 'Access-Control-Allow-Origin' header is present on the requested resource."
+
+This happens for ALL requests (including "simple" requests that skip preflight). The simple-request workaround (omit Content-Type) avoids the preflight redirect but does NOT prevent the actual POST from being redirected.
+
+---
+
+#### Customer Account Extension → Worker Auth: Session Token
+
+The correct pattern: call the Worker **directly** using a Shopify session token.
+
+- Extensions get a JWT via `shopify.sessionToken.get()` (available on the global `shopify` object)
+- Tokens are HS256, signed with the **app client secret** (`SHOPIFY_CLIENT_SECRET`)
+- The `sub` claim contains the customer GID: `gid://shopify/Customer/12345`
+- The `dest` claim contains the shop domain: `store-name.myshopify.com`
+- Tokens expire in 5 minutes; `sessionToken.get()` auto-caches and refreshes
+
+**Worker endpoint**: `POST /wishlist/ext/remove` (handled by `handlers/extRemove.js`)
+- Reads `Authorization: Bearer <token>` header
+- Validates JWT using `crypto.subtle` (HMAC-SHA256) in `shopify/sessionToken.js`
+- Extracts customer ID and shop from claims
+- Performs Admin API remove, returns `{ ok: true, list: [...] }`
+
+**Extension code**:
+```javascript
+const WORKER_EXT_REMOVE_URL =
+  'https://native-wishlist-worker.rocky-mountain-soap.workers.dev/wishlist/ext/remove';
+
+async function removeFromWishlist(removeGid) {
+  const token = await shopify.sessionToken.get(); // auto-cached JWT
+  const res = await fetch(WORKER_EXT_REMOVE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ productGid: removeGid }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.reason || 'remove failed');
+  return data.list;
+}
+```
+
+**CORS**: The direct Worker URL (`*.workers.dev`) handles OPTIONS preflights correctly and returns `Access-Control-Allow-Origin: *`. The `Authorization` header must be listed in `Access-Control-Allow-Headers` in the preflight response (see `corsPreflightResponse()` in `index.js`).
+
+#### Key Bug: Tree-Shaking and `api_version` Mismatch
+
+If the extension shows a blank page, the most likely cause is one of:
+
+**1. `api_version` is too old (< 2025-10):**
+- The CLI generates `import './src/Extension.jsx';` (bare import, no wrapper)
+- `export default` is never consumed → esbuild tree-shakes the entire component tree
+- Bundle contains only Preact runtime (~19KB) with no extension code
+- Symptom: blank container `<div class="..."></div>` with no content
+
+**2. Manual `shopify.extend()` in source code:**
+- Don't do this — the CLI generates it automatically for `api_version >= 2025-10`
+- With `api_version < 2025-10`, manual `shopify.extend()` runs but Remote DOM isn't initialised → `document is not defined`
+
+**How to verify builds**: after `shopify app build`, run:
+```bash
+python3 - <<'EOF'
+import re
+for name, path in [
+  ('FullPage', 'extensions/customer-account-wishlist/dist/customer-account-wishlist.js'),
+  ('ProfileBlock', 'extensions/wishlist-profile-block/dist/wishlist-profile-block.js'),
+]:
+  content = open(path).read()
+  print(f"\n=== {name} ({len(content):,} bytes) ===")
+  for label, pat in [('shopify.extend', r'shopify\.extend'), ('document.body', r'document\.body'), ('component tag', r's-page|s-stack|s-text')]:
+    print(f"  {'✓' if re.search(pat, content) else '✗'} {label}")
+EOF
+```
+`shopify.extend` (CLI-generated), `document.body`, and at least one `s-*` tag must be `✓`. If `shopify.extend` is missing, `api_version` is too old. If `s-*` tags are `✗`, the component tree is tree-shaken (also an `api_version` issue).
+
+#### Dependencies (correct for 2026-01)
+
+```json
+{
+  "dependencies": {
+    "@preact/signals": "^2.0.0",
+    "@shopify/ui-extensions": "^2026.1.1",
+    "preact": "^10.25.4"
+  }
+}
+```
+
+Do NOT include `@shopify/ui-extensions-react`, `react`, or `react-reconciler` — those are the legacy React API packages.
 
 ---
 

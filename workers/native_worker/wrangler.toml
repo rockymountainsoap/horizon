@@ -1,40 +1,70 @@
 # WS0 native wishlist — Cloudflare Worker (App Proxy target)
-# 1. Create KV: wrangler kv namespace create NONCE_KV
-# 2. Paste id below; set SHOP_DOMAIN / SHOP_MYSHOPIFY_DOMAIN for your store
-# 3. wrangler secret put SHOPIFY_ADMIN_TOKEN | SHOPIFY_PROXY_SECRET | SHOPIFY_STOREFRONT_TOKEN
-# Rate limit bindings require a paid CF plan — omit [[unsafe.bindings]] locally; worker skips if unset
+#
+# Auth: Client Credentials Grant (Shopify OAuth 2.0 §4.4)
+#   - Tokens are auto-acquired and cached. No manual OAuth install step.
+#   - Requires: SHOPIFY_CLIENT_ID (in vars) + SHOPIFY_CLIENT_SECRET (Wrangler secret)
+#
+# Setup (one-time):
+#   1. wrangler kv namespace create APP_KV
+#   2. wrangler secret put SHOPIFY_CLIENT_SECRET   (app client secret from Dev Dashboard)
+#   3. Deploy: npx wrangler deploy
+#   4. In Shopify Partners: configure App Proxy pointing to this Worker URL
+#
+# Optional:
+#   wrangler kv namespace create NONCE_KV          (replay protection)
 
 name = "native-wishlist-worker"
 main = "native_worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ── Shared vars ──
 [vars]
-SHOP_DOMAIN = "example.com"
-SHOP_MYSHOPIFY_DOMAIN = "your-store.myshopify.com"
+ENVIRONMENT = "development"
 MAX_WISHLIST_SIZE = "250"
 HMAC_MAX_AGE_SECONDS = "300"
+SHOP_DOMAIN = "rocky-horizon-development.myshopify.com"
+SHOP_MYSHOPIFY_DOMAIN = "rocky-horizon-development.myshopify.com"
+SHOPIFY_CLIENT_ID = "ebe31aebe73b979149df832d1e1f17bb"
 
-# Uncomment after creating the namespace:
+# ── KV: token cache + optional nonce store ──
+[[kv_namespaces]]
+binding = "APP_KV"
+id = "262fbea81ae34a7eb388b806a457289a"
+
+# ── Optional: replay protection ──
 # [[kv_namespaces]]
 # binding = "NONCE_KV"
-# id = "YOUR_KV_NAMESPACE_ID"
+# id = "YOUR_NONCE_KV_NAMESPACE_ID"
 
-# Uncomment on plans with Rate Limiting API (paid):
-# [[unsafe.bindings]]
-# name = "WISHLIST_RATE_LIMITER"
-# type = "ratelimit"
-# namespace_id = "1001"
-# simple = { limit = 20, period = 60 }
-#
+# ── Optional: rate limiting (paid Cloudflare plans) ──
 # [[unsafe.bindings]]
 # name = "IP_RATE_LIMITER"
 # type = "ratelimit"
 # namespace_id = "1002"
 # simple = { limit = 60, period = 60 }
+#
+# [[unsafe.bindings]]
+# name = "WISHLIST_RATE_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1001"
+# simple = { limit = 20, period = 60 }
 
+# ─────────────────────────────────────────────────────────
+# Production — deploy with: npx wrangler deploy --env production
+# ─────────────────────────────────────────────────────────
 [env.production]
-vars = { ENVIRONMENT = "production" }
+name = "native-wishlist-worker-production"
 
-[env.staging]
-vars = { ENVIRONMENT = "staging" }
+[env.production.vars]
+ENVIRONMENT = "production"
+MAX_WISHLIST_SIZE = "250"
+HMAC_MAX_AGE_SECONDS = "300"
+SHOP_DOMAIN = "rocky-mountain-soap.myshopify.com"
+SHOP_MYSHOPIFY_DOMAIN = "rocky-mountain-soap.myshopify.com"
+SHOPIFY_CLIENT_ID = "ebe31aebe73b979149df832d1e1f17bb"
+
+# Production needs its own KV namespace (create with: wrangler kv namespace create APP_KV --env production)
+# [[env.production.kv_namespaces]]
+# binding = "APP_KV"
+# id = "YOUR_PRODUCTION_KV_ID"

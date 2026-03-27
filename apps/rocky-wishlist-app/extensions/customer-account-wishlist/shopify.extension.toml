@@ -1,8 +1,9 @@
-api_version = "2025-04"
+api_version = "2025-10"
 
 [[extensions]]
 name = "My Wishlist"
 handle = "customer-account-wishlist"
+uid = "2842f224-d987-cfea-47c3-182398c28d103c711e42"
 type = "ui_extension"
 
 [[extensions.targeting]]

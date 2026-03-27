@@ -2,8 +2,17 @@
 ## Rocky Mountain Soap Co. — Shopify Customer Accounts 2.0
 
 **Stack:** Shopify Customer Account UI Extension · Theme App Extension · Cloudflare Workers · Shopify Admin GraphQL API · Customer Metafields  
-**Version:** 1.0  
-**Status:** Planning
+**Version:** 1.1  
+**Status:** Implemented (production-ready)
+
+> **Implementation notes (v1.2):**
+> - The metafield namespace is `$app` with key `saved_products` (not `$app:wishlist`). Shopify resolves `$app` to the app's reserved namespace automatically.
+> - **Auth: Client Credentials Grant** (replaced OAuth install flow in v1.2). The Worker exchanges `client_id` + `client_secret` for a 24h Admin API token, cached in memory + KV. Self-heals on token expiry — no manual install step or redirect URLs needed. See `workers/native_worker/README.md`.
+> - A `/wishlist/products` endpoint was added to fetch product details for the header mini-wishlist drawer.
+> - Admin API `ProductVariant.price` is a scalar `Money` (decimal string), not `MoneyV2`. Currency code comes from `priceRange.minVariantPrice.currencyCode`.
+> - Customer Account extensions use `api.query()` mutations for remove (not App Proxy fetch) because they run on a different origin.
+> - See `AGENTS.md` → "Horizon Runtime Internals" for morph library and event system patterns learned during implementation.
+> - File structure: `apps/rocky-wishlist-app/` (app + extensions), `workers/native_worker/` (Cloudflare Worker).
 
 ---
 

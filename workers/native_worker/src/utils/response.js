@@ -1,12 +1,15 @@
-const ALLOWED_ORIGINS = (env) => {
-  const domains = [env.SHOP_DOMAIN, env.SHOP_MYSHOPIFY_DOMAIN].filter(Boolean);
-  return domains.map((d) => `https://${d}`);
-};
+// Matches any *.shopify.com or *.shopifycdn.com origin (extensions, customer
+// accounts, CDN). HMAC provides the real auth — CORS is defense-in-depth only.
+const SHOPIFY_ORIGIN_RE = /^https:\/\/(?:[a-zA-Z0-9-]+\.)?(?:shopify|shopifycdn)\.com$/;
 
 export function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') ?? '';
-  const allowed = ALLOWED_ORIGINS(env);
-  const allowedOrigin = allowed.includes(origin) ? origin : allowed[0] ?? '*';
+  const shopDomains = [env.SHOP_DOMAIN, env.SHOP_MYSHOPIFY_DOMAIN]
+    .filter(Boolean)
+    .map((d) => `https://${d}`);
+
+  const isAllowed = shopDomains.includes(origin) || SHOPIFY_ORIGIN_RE.test(origin);
+  const allowedOrigin = isAllowed ? origin : '*';
 
   return {
     'Access-Control-Allow-Origin': allowedOrigin,

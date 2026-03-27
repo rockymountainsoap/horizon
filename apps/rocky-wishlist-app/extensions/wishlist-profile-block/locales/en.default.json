@@ -4,5 +4,7 @@
   "loading": "Loading...",
   "emptySubtitle": "No saved products yet",
   "countSubtitle": "{{count}} saved products",
-  "configurePath": "Set “Wishlist page path” in this block’s settings to add a link button."
+  "outOfStock": "Out of stock",
+  "loadError": "Failed to load your wishlist. Please refresh.",
+  "configurePath": "Set \"Wishlist page path\" in this block's settings to add a link button."
 }

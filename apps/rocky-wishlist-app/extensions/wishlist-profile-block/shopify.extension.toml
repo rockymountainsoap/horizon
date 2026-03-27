@@ -1,8 +1,9 @@
-api_version = "2025-04"
+api_version = "2025-10"
 
 [[extensions]]
 name = "Wishlist Profile Block"
 handle = "wishlist-profile-block"
+uid = "a1eb23c4-ce29-1e17-8061-132bf7a545b9d9bca54d"
 type = "ui_extension"
 
 [[extensions.targeting]]
@@ -11,6 +12,7 @@ target = "customer-account.profile.block.render"
 
 [extensions.capabilities]
 api_access = true
+network_access = true
 
 [extensions.settings]
 

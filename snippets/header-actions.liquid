@@ -99,6 +99,11 @@
     </div>
   {% endif %}
 
+  {%- # r: WS0 native wishlist — heart icon with mini-drawer, sits between account and cart -%}
+  {% if shop.customer_accounts_enabled %}
+    {%- render 'r-header-wishlist' -%}
+  {% endif %}
+
   {% if settings.cart_type == 'drawer' and template.name != 'cart' %}
     <script
       src="{{ 'cart-drawer.js' | asset_url }}"

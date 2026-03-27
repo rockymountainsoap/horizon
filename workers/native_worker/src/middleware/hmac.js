@@ -1,4 +1,4 @@
-function hexToBytes(hex) {
+export function hexToBytes(hex) {
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
     bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
@@ -9,7 +9,7 @@ function hexToBytes(hex) {
 /**
  * Verify Shopify App Proxy HMAC (query params include signature, timestamp, shop, etc.)
  * @param {string} url - Full request URL including query string
- * @param {string} secret - App client secret (SHOPIFY_PROXY_SECRET)
+ * @param {string} secret - App client secret (SHOPIFY_CLIENT_SECRET)
  * @param {number} [maxAgeSeconds=300]
  */
 export async function verifyShopifyHmac(url, secret, maxAgeSeconds = 300) {
@@ -50,3 +50,4 @@ export async function verifyShopifyHmac(url, secret, maxAgeSeconds = 300) {
     return false;
   }
 }
+
