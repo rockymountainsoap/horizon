@@ -1,8 +1,10 @@
 {%- comment -%}
   Snippet: r-header-wishlist
   Workstream: WS0 — Native Wishlist
-  Description: Heart icon in the header with count badge and slide-in mini-wishlist drawer.
-               Guests see their localStorage list; logged-in customers fetch via App Proxy.
+  Description: Heart icon + badge + slide-in mini-wishlist drawer.
+               Self-contained: includes its own styles, loads r-header-wishlist.js, and handles
+               guest ↔ server merge on login — no separate r-wishlist-init render required.
+               Render once via snippets/header-actions.liquid.
 {%- endcomment -%}
 
 <r-wishlist-header

@@ -1,10 +1,11 @@
 /**
  * r-wishlist-header — Rocky header wishlist icon + mini-drawer.
  *
- * For logged-in customers: fetches GIDs via App Proxy /list, then fetches
- * product details (with variants) via /products. Handles remove and add-to-cart inline.
+ * Logged-in customers: fetches GIDs via App Proxy /list, then product details
+ * via /products. Also merges any guest localStorage items on first login.
  *
- * For guests: reads localStorage key `rmsc_wishlist_guest`.
+ * Guests: reads/writes localStorage key `rmsc_wishlist_guest`. Product details
+ * are still fetched via /products (requireAuth: false endpoint).
  *
  * Listens for `wishlist:changed` and `wishlist:synced` events from
  * wishlist-button.js so the badge and list stay in sync.
@@ -80,6 +81,11 @@ class RWishlistHeader extends HTMLElement {
     document.addEventListener('wishlist:changed', () => this._refresh());
     document.addEventListener('wishlist:synced', () => this._refresh());
 
+    // Merge guest localStorage items into the server wishlist on first login.
+    // Fire-and-forget: dispatches wishlist:synced on success which triggers
+    // a second refresh automatically. Returns immediately when nothing to merge.
+    if (this._isLoggedIn) this._mergeGuestList();
+
     this._refresh();
   }
 
@@ -113,6 +119,42 @@ class RWishlistHeader extends HTMLElement {
       this._list = Array.isArray(stored) ? stored : [];
     } catch {
       this._list = [];
+    }
+  }
+
+  /**
+   * Merge any guest-stored GIDs into the server wishlist.
+   * Called once per page load when the customer is logged in.
+   * Returns early (no network request) when localStorage is empty.
+   */
+  async _mergeGuestList() {
+    let local;
+    try {
+      local = JSON.parse(localStorage.getItem(GUEST_KEY) || '[]');
+    } catch {
+      return;
+    }
+    if (!local.length) return;
+
+    try {
+      const res = await fetch(`${this._proxyBase}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ local }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.ok) {
+        localStorage.removeItem(GUEST_KEY);
+        document.dispatchEvent(
+          new CustomEvent('wishlist:synced', {
+            detail: { list: data.list },
+            bubbles: true,
+          })
+        );
+      }
+    } catch {
+      // Silent fail — will retry on next page load
     }
   }
 
