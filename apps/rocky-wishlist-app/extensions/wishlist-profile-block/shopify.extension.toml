@@ -21,3 +21,10 @@ key = "wishlist_path"
 type = "single_line_text_field"
 name = "Wishlist page path"
 description = "Path to your full-page wishlist (from Customer Account editor preview URL), e.g. the path after your store domain."
+
+[[extensions.settings.fields]]
+key = "max_preview"
+type = "number_integer"
+name = "Max preview cards"
+description = "Maximum number of cards to show in the profile carousel. Default 8. When exceeded, the final tile becomes View all."
+default = 8

@@ -1,6 +1,7 @@
 {
   "heading": "My Wishlist",
   "viewWishlist": "View wishlist",
+  "viewAllCount": "{{count}} saved products",
   "loading": "Loading...",
   "emptySubtitle": "No saved products yet",
   "countSubtitle": "{{count}} saved products",

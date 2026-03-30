@@ -1,6 +1,11 @@
 /**
  * Wishlist PDP block — guest localStorage + logged-in App Proxy.
  *
+ * Uses sessionStorage to cache the GID list across page navigations within
+ * the same tab, avoiding redundant /list API calls on every PDP visit.
+ * Cache is invalidated immediately on add/remove actions and written back
+ * with the authoritative list from the API response.
+ *
  * Click handler is attached synchronously on init so it is never missed
  * due to an in-flight auth fetch. Auth state is resolved lazily on click.
  */
@@ -9,6 +14,34 @@
 
   const PROXY_BASE = '/apps/wishlist';
   const STORAGE_KEY = 'rmsc_wishlist_guest';
+  const SESSION_KEY = 'rmsc_wishlist_session';
+  const SESSION_TTL_MS = 5 * 60 * 1000; // 5 min
+
+  // ── sessionStorage cache ────────────────────────────────────────────────
+
+  function readSessionCache() {
+    try {
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (Date.now() - parsed.ts > SESSION_TTL_MS) return null;
+      return Array.isArray(parsed.list) ? parsed.list : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeSessionCache(list) {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ list, ts: Date.now() }));
+    } catch {}
+  }
+
+  function clearSessionCache() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  }
+
+  // ── Guest localStorage helpers ──────────────────────────────────────────
 
   function getGuestList() {
     try {
@@ -21,9 +54,7 @@
   function saveGuestList(list) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    } catch {
-      /* ignore quota / private mode */
-    }
+    } catch {}
   }
 
   /** @type {string[] | null} Null until first completed fetch. */
@@ -38,17 +69,28 @@
   let apiAuthenticated = false;
 
   async function fetchList() {
+    // Serve from sessionStorage if fresh — zero network cost
+    const cached = readSessionCache();
+    if (cached !== null) {
+      listCache = cached;
+      apiAuthenticated = true;
+      fetchPromise = null;
+      return listCache;
+    }
+
     try {
       const res = await fetch(`${PROXY_BASE}/list`);
       if (res.status === 403) {
         apiAuthenticated = false;
         listCache = [];
+        fetchPromise = null;
         return listCache;
       }
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
       apiAuthenticated = true;
       listCache = Array.isArray(data.list) ? data.list : [];
+      writeSessionCache(listCache);
     } catch (err) {
       console.warn('[wishlist] list fetch failed:', err?.message ?? err);
       if (listCache === null) listCache = [];
@@ -105,19 +147,21 @@
           if (!res.ok) throw new Error(String(res.status));
           const data = await res.json();
           listCache = Array.isArray(data.list) ? data.list : listCache;
+          writeSessionCache(listCache);
         } else {
           let local = getGuestList();
           local = currentlyActive
             ? local.filter((gid) => gid !== productGid)
             : [...new Set([...local, productGid])];
           saveGuestList(local);
+          listCache = local;
         }
 
         setButtonState(btn, !currentlyActive);
 
         document.dispatchEvent(
           new CustomEvent('wishlist:changed', {
-            detail: { action, productGid, isLoggedIn: apiAuthenticated },
+            detail: { action, productGid, list: listCache, isLoggedIn: apiAuthenticated },
             bubbles: true,
           })
         );
@@ -142,15 +186,23 @@
     document.querySelectorAll('.wishlist-wrapper').forEach(initButton);
   }
 
-  // Keep button state in sync when the header drawer adds/removes items
+  // Keep button state in sync when the header drawer adds/removes items.
+  // If the event carries the full authoritative list, adopt it directly
+  // to avoid any stale-cache drift.
   document.addEventListener('wishlist:changed', (e) => {
-    const { action, productGid: changedGid } = e?.detail ?? {};
-    if (!changedGid || listCache === null) return;
+    const { action, productGid: changedGid, list: eventList } = e?.detail ?? {};
+    if (!changedGid) return;
 
-    if (action === 'add' && !listCache.includes(changedGid)) {
-      listCache = [...listCache, changedGid];
-    } else if (action === 'remove') {
-      listCache = listCache.filter((gid) => gid !== changedGid);
+    if (Array.isArray(eventList)) {
+      listCache = eventList;
+      writeSessionCache(listCache);
+    } else if (listCache !== null) {
+      if (action === 'add' && !listCache.includes(changedGid)) {
+        listCache = [...listCache, changedGid];
+      } else if (action === 'remove') {
+        listCache = listCache.filter((gid) => gid !== changedGid);
+      }
+      writeSessionCache(listCache);
     }
 
     document.querySelectorAll('.wishlist-wrapper').forEach((wrapper) => {
@@ -161,13 +213,20 @@
     });
   });
 
-  // After guest→logged-in merge, reset and re-init
-  document.addEventListener('wishlist:synced', () => {
+  // After guest→logged-in merge, clear sessionStorage so the next read
+  // fetches the merged server-side list.
+  document.addEventListener('wishlist:synced', (e) => {
     listCache = null;
     fetchPromise = null;
     apiAuthenticated = false;
-    // Re-init: guard flag is already set, so listeners won't duplicate;
-    // just refresh the visual state for each button
+    clearSessionCache();
+
+    if (Array.isArray(e?.detail?.list)) {
+      listCache = e.detail.list;
+      apiAuthenticated = true;
+      writeSessionCache(listCache);
+    }
+
     document.querySelectorAll('.wishlist-wrapper').forEach((wrapper) => {
       const btn = wrapper.querySelector('[data-wishlist-toggle]');
       if (!btn) return;

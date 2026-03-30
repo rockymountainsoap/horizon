@@ -7,11 +7,41 @@
  * Guests: reads/writes localStorage key `rmsc_wishlist_guest`. Product details
  * are still fetched via /products (requireAuth: false endpoint).
  *
+ * Uses sessionStorage (`rmsc_wishlist_session`) to cache the GID list across
+ * page navigations within the same tab. The cache is shared with
+ * wishlist-button.js so only one /list call is made per session window
+ * (5 min TTL). Add/remove actions write the authoritative server response
+ * back to sessionStorage immediately.
+ *
  * Listens for `wishlist:changed` and `wishlist:synced` events from
  * wishlist-button.js so the badge and list stay in sync.
  */
 
 const GUEST_KEY = 'rmsc_wishlist_guest';
+const SESSION_KEY = 'rmsc_wishlist_session';
+const SESSION_TTL_MS = 5 * 60 * 1000;
+
+function _readSessionCache() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > SESSION_TTL_MS) return null;
+    return Array.isArray(parsed.list) ? parsed.list : null;
+  } catch {
+    return null;
+  }
+}
+
+function _writeSessionCache(list) {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ list, ts: Date.now() }));
+  } catch {}
+}
+
+function _clearSessionCache() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
 
 /**
  * Format a Money amount as a localised currency string.
@@ -77,9 +107,29 @@ class RWishlistHeader extends HTMLElement {
       this._close();
     });
 
-    // Keep in sync with PDP wishlist button changes
-    document.addEventListener('wishlist:changed', () => this._refresh());
-    document.addEventListener('wishlist:synced', () => this._refresh());
+    // Keep in sync with PDP wishlist button changes.
+    // If the event carries the authoritative list, adopt it directly into
+    // both in-memory state and sessionStorage — no API call needed.
+    document.addEventListener('wishlist:changed', (e) => {
+      const detail = e?.detail ?? {};
+      if (Array.isArray(detail.list)) {
+        this._list = detail.list;
+        _writeSessionCache(this._list);
+        this._updateBadge();
+      } else {
+        this._refresh();
+      }
+    });
+    document.addEventListener('wishlist:synced', (e) => {
+      _clearSessionCache();
+      if (Array.isArray(e?.detail?.list)) {
+        this._list = e.detail.list;
+        _writeSessionCache(this._list);
+        this._updateBadge();
+      } else {
+        this._refresh();
+      }
+    });
 
     // Merge guest localStorage items into the server wishlist on first login.
     // Fire-and-forget: dispatches wishlist:synced on success which triggers
@@ -100,13 +150,24 @@ class RWishlistHeader extends HTMLElement {
     this._updateBadge();
   }
 
-  /** Read GIDs from App Proxy. Does NOT open or render the drawer. */
+  /**
+   * Read GIDs from App Proxy. Serves from sessionStorage when fresh,
+   * avoiding a network round-trip on every page navigation.
+   * Does NOT open or render the drawer.
+   */
   async _fetchLoggedIn() {
+    const cached = _readSessionCache();
+    if (cached !== null) {
+      this._list = cached;
+      return;
+    }
+
     try {
       const res = await fetch(`${this._proxyBase}/list`);
       if (!res.ok) throw new Error(`list ${res.status}`);
       const data = await res.json();
       this._list = Array.isArray(data.list) ? data.list : [];
+      _writeSessionCache(this._list);
     } catch (err) {
       console.warn('[r-wishlist-header] list fetch failed:', err);
       this._list = [];
@@ -146,9 +207,11 @@ class RWishlistHeader extends HTMLElement {
       const data = await res.json();
       if (data.ok) {
         localStorage.removeItem(GUEST_KEY);
+        const mergedList = Array.isArray(data.list) ? data.list : [];
+        _writeSessionCache(mergedList);
         document.dispatchEvent(
           new CustomEvent('wishlist:synced', {
-            detail: { list: data.list },
+            detail: { list: mergedList },
             bubbles: true,
           })
         );
@@ -547,7 +610,6 @@ class RWishlistHeader extends HTMLElement {
 
   async _removeItem(gid, liEl) {
     if (!this._isLoggedIn) {
-      // Guest: update localStorage directly
       this._list = this._list.filter((id) => id !== gid);
       try {
         localStorage.setItem(GUEST_KEY, JSON.stringify(this._list));
@@ -555,7 +617,6 @@ class RWishlistHeader extends HTMLElement {
 
       liEl.remove();
       this._products = this._products.filter((p) => p.id !== gid);
-
       this._updateBadge();
       const guestCount = this._list.length;
       if (this._countLabel) {
@@ -566,7 +627,7 @@ class RWishlistHeader extends HTMLElement {
 
       document.dispatchEvent(
         new CustomEvent('wishlist:changed', {
-          detail: { action: 'remove', productGid: gid, isLoggedIn: false },
+          detail: { action: 'remove', productGid: gid, list: this._list, isLoggedIn: false },
           bubbles: true,
         })
       );
@@ -584,6 +645,7 @@ class RWishlistHeader extends HTMLElement {
       liEl.remove();
       this._list = this._list.filter((id) => id !== gid);
       this._products = this._products.filter((p) => p.id !== gid);
+      _writeSessionCache(this._list);
 
       this._updateBadge();
       const count = this._list.length;
@@ -595,7 +657,7 @@ class RWishlistHeader extends HTMLElement {
 
       document.dispatchEvent(
         new CustomEvent('wishlist:changed', {
-          detail: { action: 'remove', productGid: gid, isLoggedIn: true },
+          detail: { action: 'remove', productGid: gid, list: this._list, isLoggedIn: true },
           bubbles: true,
         })
       );

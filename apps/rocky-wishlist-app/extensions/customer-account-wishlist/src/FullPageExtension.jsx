@@ -156,65 +156,92 @@ async function removeFromWishlist(removeGid) {
 
 // ── ProductCard component ─────────────────────────────────────────────────────
 
-function ProductCard({ product, storeUrl, removing, onRemove }) {
+/**
+ * Multiple rows, 2-4 cards per row.
+ * - max 4 columns (desktop)
+ * - min 2 columns (narrower)
+ */
+function equalWishlistCardSizing(itemCount) {
+  const columns = Math.max(2, Math.min(4, itemCount));
+  const gapBudget = 2.3 * (columns - 1);
+  const share = (100 - gapBudget) / columns;
+  const p = `${share.toFixed(2)}%`;
+  return { inline: p, min: p, max: p };
+}
+
+function ProductCard({ product, storeUrl, removing, onRemove, cardSizing }) {
   const price = shopify.i18n.formatCurrency(
     Number(product.priceRange.minVariantPrice.amount),
     { currency: product.priceRange.minVariantPrice.currencyCode }
   );
 
-  // Prefer onlineStoreUrl; fall back to constructing from shop domain + handle
   const productUrl =
     product.onlineStoreUrl ||
     (storeUrl ? `${storeUrl}/products/${product.handle}` : null);
 
+  const imageEl = product.featuredImage ? (
+    <s-image
+      src={product.featuredImage.url}
+      alt={product.featuredImage.altText || product.title}
+      aspect-ratio="1"
+      object-fit="contain"
+      inlineSize="fill"
+      borderRadius="none"
+      loading="lazy"
+    />
+  ) : null;
+
   return (
-    <s-stack direction="block" gap="small">
+    <s-box
+      borderRadius="none"
+      border="base base"
+      background="base"
+      padding="base"
+      overflow="hidden"
+      inlineSize={cardSizing.inline}
+      minInlineSize={cardSizing.min}
+      maxInlineSize={cardSizing.max}
+    >
+      <s-stack direction="block" gap="small" inlineSize="fill" blockSize="100%">
+        {/*
+          No fixed blockSize: s-image with inlineSize fill + aspect-ratio 1 defines a
+          square equal to the card inner width — same for every product.
+        */}
+        <s-box borderRadius="none" background="subdued" inlineSize="fill" overflow="hidden">
+          {productUrl && imageEl ? (
+            <s-link href={productUrl} target="_blank">
+              {imageEl}
+            </s-link>
+          ) : (
+            imageEl
+          )}
+        </s-box>
 
-      {productUrl ? (
-        <s-link href={productUrl} target="_blank">
-          {product.featuredImage ? (
-            <s-image
-              src={product.featuredImage.url}
-              alt={product.featuredImage.altText || product.title}
-              aspect-ratio="1"
-              object-fit="cover"
-            />
-          ) : null}
-        </s-link>
-      ) : product.featuredImage ? (
-        <s-image
-          src={product.featuredImage.url}
-          alt={product.featuredImage.altText || product.title}
-          aspect-ratio="1"
-          object-fit="cover"
-        />
-      ) : null}
+        <s-text type="strong">{product.title}</s-text>
+        <s-text>{price}</s-text>
 
-      <s-text type="strong">{product.title}</s-text>
-
-      <s-text>{price}</s-text>
-
-      {!product.availableForSale ? (
-        <s-badge tone="warning">{shopify.i18n.translate('outOfStock')}</s-badge>
-      ) : null}
-
-      <s-stack direction="inline" gap="small">
-        {productUrl ? (
-          <s-button href={productUrl} target="_blank">
-            {shopify.i18n.translate('viewProduct')}
-          </s-button>
+        {!product.availableForSale ? (
+          <s-badge tone="warning">{shopify.i18n.translate('outOfStock')}</s-badge>
         ) : null}
 
-        <s-button
-          variant="secondary"
-          disabled={removing === product.id}
-          onClick={() => onRemove(product.id)}
-        >
-          {removing === product.id ? '…' : shopify.i18n.translate('remove')}
-        </s-button>
-      </s-stack>
+        <s-stack direction="block" gap="small" inlineSize="fill">
+          {productUrl ? (
+            <s-button href={productUrl} target="_blank" inlineSize="fill" variant="primary">
+              {shopify.i18n.translate('viewProduct')}
+            </s-button>
+          ) : null}
 
-    </s-stack>
+          <s-button
+            variant="secondary"
+            inlineSize="fill"
+            disabled={removing === product.id}
+            onClick={() => onRemove(product.id)}
+          >
+            {removing === product.id ? '…' : shopify.i18n.translate('remove')}
+          </s-button>
+        </s-stack>
+      </s-stack>
+    </s-box>
   );
 }
 
@@ -291,9 +318,9 @@ function WishlistPage() {
     return (
       <s-page heading={heading}>
         <s-section>
-          <s-stack direction="block" gap="base">
+          <s-stack direction="block" gap="base" inlineSize="fill" maxInlineSize="400px">
             <s-text>{shopify.i18n.translate('empty')}</s-text>
-            <s-button href="shopify:customer-account/">
+            <s-button href="shopify:customer-account/" inlineSize="fill" variant="primary">
               {shopify.i18n.translate('startShopping')}
             </s-button>
           </s-stack>
@@ -302,6 +329,8 @@ function WishlistPage() {
     );
   }
 
+  const cardSizing = equalWishlistCardSizing(products.length);
+
   return (
     <s-page heading={heading}>
       <s-section>
@@ -309,21 +338,16 @@ function WishlistPage() {
           <s-banner tone="critical">{removeError}</s-banner>
         ) : null}
 
-        {/*
-         * s-grid is "coming soon" in Polaris — its runtime sets grid-template-columns
-         * to `none` regardless of value. Use s-stack direction="inline" instead:
-         * items wrap naturally and each s-box takes ~50% width via the layout engine.
-         */}
-        <s-stack direction="inline" gap="base">
+        <s-stack direction="inline" gap="base" alignItems="stretch" inlineSize="fill">
           {products.map((product) => (
-            <s-box key={product.id}>
-              <ProductCard
-                product={product}
-                storeUrl={storeUrl}
-                removing={removing}
-                onRemove={removeItem}
-              />
-            </s-box>
+            <ProductCard
+              key={product.id}
+              product={product}
+              storeUrl={storeUrl}
+              removing={removing}
+              onRemove={removeItem}
+              cardSizing={cardSizing}
+            />
           ))}
         </s-stack>
       </s-section>
