@@ -7,19 +7,28 @@
  * Guests: reads/writes localStorage key `rmsc_wishlist_guest`. Product details
  * are still fetched via /products (requireAuth: false endpoint).
  *
- * Uses sessionStorage (`rmsc_wishlist_session`) to cache the GID list across
- * page navigations within the same tab. The cache is shared with
- * wishlist-button.js so only one /list call is made per session window
- * (5 min TTL). Add/remove actions write the authoritative server response
- * back to sessionStorage immediately.
+ * sessionStorage cache — two shared keys, both with SESSION_TTL_MS TTL:
+ *
+ *   rmsc_wishlist_session   — GID list  { list: string[], ts: number }
+ *     Shared with wishlist-button.js. One /list API call per tab session.
+ *     Written on every add/remove action and on guest→server merge.
+ *
+ *   rmsc_wishlist_products  — Product details  { listKey: string, products: object[], ts: number }
+ *     Keyed by the sorted, joined GID list so any add/remove automatically
+ *     busts the cache — no explicit invalidation needed.
+ *     One /products API call per unique list composition per tab session.
  *
  * Listens for `wishlist:changed` and `wishlist:synced` events from
- * wishlist-button.js so the badge and list stay in sync.
+ * wishlist-button.js so the badge and list stay in sync without any API call
+ * when the event carries the full authoritative list.
  */
 
 const GUEST_KEY = 'rmsc_wishlist_guest';
 const SESSION_KEY = 'rmsc_wishlist_session';
-const SESSION_TTL_MS = 5 * 60 * 1000;
+const PRODUCTS_SESSION_KEY = 'rmsc_wishlist_products';
+const SESSION_TTL_MS = 5 * 60 * 1000; // shared TTL for both caches
+
+// ── GID list cache (shared with wishlist-button.js) ──────────────────────────
 
 function _readSessionCache() {
   try {
@@ -41,6 +50,42 @@ function _writeSessionCache(list) {
 
 function _clearSessionCache() {
   try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
+
+// ── Product details cache ─────────────────────────────────────────────────────
+// Cache key is the sorted GID list so any add/remove automatically busts it.
+
+/** @param {string[]} list */
+function _makeListKey(list) {
+  return [...list].sort().join(',');
+}
+
+/** @param {string[]} list @returns {object[]|null} */
+function _readProductsCache(list) {
+  try {
+    const raw = sessionStorage.getItem(PRODUCTS_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > SESSION_TTL_MS) return null;
+    if (parsed.listKey !== _makeListKey(list)) return null;
+    return Array.isArray(parsed.products) ? parsed.products : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {string[]} list @param {object[]} products */
+function _writeProductsCache(list, products) {
+  try {
+    sessionStorage.setItem(
+      PRODUCTS_SESSION_KEY,
+      JSON.stringify({ listKey: _makeListKey(list), products, ts: Date.now() })
+    );
+  } catch {}
+}
+
+function _clearProductsCache() {
+  try { sessionStorage.removeItem(PRODUCTS_SESSION_KEY); } catch {}
 }
 
 /**
@@ -87,6 +132,11 @@ class RWishlistHeader extends HTMLElement {
     this._viewAllEl = /** @type {HTMLAnchorElement} */ (this.querySelector('.r-wishlist-dialog__view-all'));
     this._closeBtn = /** @type {HTMLButtonElement} */ (this.querySelector('.r-wishlist-dialog__close'));
 
+    this._bulkBarEl = /** @type {HTMLElement} */ (this.querySelector('.r-wishlist-dialog__bulk-bar'));
+    this._selectAllCb = /** @type {HTMLInputElement} */ (this.querySelector('.r-wishlist-dialog__select-all-cb'));
+    this._bulkCountEl = /** @type {HTMLElement} */ (this.querySelector('.r-wishlist-dialog__bulk-count'));
+    this._addSelectedBtn = /** @type {HTMLButtonElement} */ (this.querySelector('.r-wishlist-dialog__add-selected'));
+
     this._list = [];
     this._products = [];
     this._loading = false;
@@ -95,6 +145,9 @@ class RWishlistHeader extends HTMLElement {
 
     this._btn?.addEventListener('click', () => this._toggle());
     this._closeBtn?.addEventListener('click', () => this._close());
+
+    this._selectAllCb?.addEventListener('change', () => this._onSelectAll());
+    this._addSelectedBtn?.addEventListener('click', () => this._addSelectedToCart());
 
     // Close on backdrop click
     this._dialog?.addEventListener('click', (e) => {
@@ -110,18 +163,42 @@ class RWishlistHeader extends HTMLElement {
     // Keep in sync with PDP wishlist button changes.
     // If the event carries the authoritative list, adopt it directly into
     // both in-memory state and sessionStorage — no API call needed.
+    // Also update the products cache so it stays aligned with the new list key:
+    // - On remove: the remaining in-memory products are still valid; write them
+    //   under the new key so the next drawer open skips the /products call.
+    // - On add: the new GID has no product data yet; skip products cache write
+    //   so the next drawer open fetches the full updated set.
     document.addEventListener('wishlist:changed', (e) => {
       const detail = e?.detail ?? {};
       if (Array.isArray(detail.list)) {
         this._list = detail.list;
         _writeSessionCache(this._list);
         this._updateBadge();
+
+        // Keep products cache aligned with the new list
+        if (detail.action === 'remove' && this._products.length) {
+          // Filter in-memory products to the surviving GIDs and re-cache
+          const surviving = this._products.filter((p) => this._list.includes(p.id));
+          this._products = surviving;
+          if (surviving.length) {
+            _writeProductsCache(this._list, surviving);
+          } else {
+            _clearProductsCache();
+          }
+        } else {
+          // For adds (or unknown actions), the new GID has no product data yet;
+          // clear the products cache so the next drawer open fetches everything.
+          _clearProductsCache();
+        }
       } else {
         this._refresh();
       }
     });
     document.addEventListener('wishlist:synced', (e) => {
+      // Full reset — both caches cleared; new list (and products on next open)
+      // will be fetched fresh against the merged server state.
       _clearSessionCache();
+      _clearProductsCache();
       if (Array.isArray(e?.detail?.list)) {
         this._list = e.detail.list;
         _writeSessionCache(this._list);
@@ -209,6 +286,7 @@ class RWishlistHeader extends HTMLElement {
         localStorage.removeItem(GUEST_KEY);
         const mergedList = Array.isArray(data.list) ? data.list : [];
         _writeSessionCache(mergedList);
+        _clearProductsCache(); // merged list may contain new GIDs
         document.dispatchEvent(
           new CustomEvent('wishlist:synced', {
             detail: { list: mergedList },
@@ -221,18 +299,33 @@ class RWishlistHeader extends HTMLElement {
     }
   }
 
-  /** Fetch product details (including variants) for the current GID list. */
+  /**
+   * Fetch product details (title, variants, price, image) for the current GID
+   * list. Serves from the products sessionStorage cache when the GID list is
+   * unchanged, otherwise fetches from the App Proxy and writes the result back.
+   * Cache busts automatically whenever any GID is added or removed because the
+   * cache key is the sorted GID list itself.
+   */
   async _fetchProducts() {
     if (!this._list.length) {
       this._products = [];
       return;
     }
+
+    // Return cached product data when list is identical and cache is fresh
+    const cached = _readProductsCache(this._list);
+    if (cached !== null) {
+      this._products = cached;
+      return;
+    }
+
     try {
       const ids = this._list.join(',');
       const res = await fetch(`${this._proxyBase}/products?ids=${encodeURIComponent(ids)}`);
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
       this._products = Array.isArray(data.products) ? data.products : [];
+      _writeProductsCache(this._list, this._products);
     } catch (err) {
       console.warn('[r-wishlist-header] products fetch failed:', err);
       this._products = [];
@@ -345,6 +438,8 @@ class RWishlistHeader extends HTMLElement {
 
     if (count === 0) {
       this._showEmpty();
+      if (this._bulkBarEl) this._bulkBarEl.hidden = true;
+      if (this._addSelectedBtn) this._addSelectedBtn.hidden = true;
       return;
     }
 
@@ -352,17 +447,24 @@ class RWishlistHeader extends HTMLElement {
 
     if (this._products.length > 0) {
       this._renderProductList();
+      // Show bulk toolbar and add-selected button
+      if (this._bulkBarEl) this._bulkBarEl.hidden = false;
+      if (this._addSelectedBtn) this._addSelectedBtn.hidden = false;
+      // Reset select-all state on every render
+      this._resetSelectAll();
       // Show sign-in nudge below the product cards for guests
       if (!this._isLoggedIn && this._guestNoteEl) {
         this._guestNoteEl.hidden = false;
       }
     } else if (this._isLoggedIn) {
-      // Products fetch failed for logged-in user — show count only
       this._appendCountOnly(count);
+      if (this._bulkBarEl) this._bulkBarEl.hidden = true;
+      if (this._addSelectedBtn) this._addSelectedBtn.hidden = true;
     } else {
-      // Guest + products fetch failed — show count + sign-in nudge
       this._appendCountOnly(count, true);
       if (this._guestNoteEl) this._guestNoteEl.hidden = false;
+      if (this._bulkBarEl) this._bulkBarEl.hidden = true;
+      if (this._addSelectedBtn) this._addSelectedBtn.hidden = true;
     }
   }
 
@@ -402,6 +504,8 @@ class RWishlistHeader extends HTMLElement {
     const productUrl = product.onlineStoreUrl ?? `/products/${product.handle}`;
     const imgUrl = product.featuredImage?.url ?? '';
     const imgAlt = product.featuredImage?.altText ?? product.title;
+
+    const anyAvailable = variants.some((v) => v.availableForSale);
 
     const li = document.createElement('li');
     li.className = 'r-wishlist-item';
@@ -463,6 +567,13 @@ class RWishlistHeader extends HTMLElement {
       : `<span class="r-wishlist-item__sold-out">Sold out</span>`;
 
     li.innerHTML = `
+      <input
+        type="checkbox"
+        class="r-wishlist-item__cb"
+        aria-label="Select ${this._escapeAttr(product.title)}"
+        data-gid="${this._escapeAttr(gid)}"
+        ${anyAvailable ? '' : 'disabled'}
+      >
       <a href="${productUrl}" class="r-wishlist-item__image-link"
          aria-label="${this._escapeAttr(product.title)}" tabindex="0">
         ${imageHtml}
@@ -542,6 +653,11 @@ class RWishlistHeader extends HTMLElement {
     // ── Wire up remove ──
     li.querySelector('.r-wishlist-item__remove')?.addEventListener('click', () => {
       this._removeItem(gid, li);
+    });
+
+    // ── Wire up item checkbox → sync select-all state ──
+    li.querySelector('.r-wishlist-item__cb')?.addEventListener('change', () => {
+      this._syncSelectAll();
     });
 
     return li;
@@ -663,6 +779,155 @@ class RWishlistHeader extends HTMLElement {
       );
     } catch {
       // Silent fail; state refreshes on next open
+    }
+  }
+
+  // ─── Bulk add-to-cart ──────────────────────────────────────────────────────
+
+  /** Reset select-all checkbox and counter after each drawer render. */
+  _resetSelectAll() {
+    if (this._selectAllCb) {
+      this._selectAllCb.checked = false;
+      this._selectAllCb.indeterminate = false;
+    }
+    this._updateBulkBtn(0);
+  }
+
+  /** Fired when the "Select all" checkbox changes. */
+  _onSelectAll() {
+    const checked = this._selectAllCb?.checked ?? false;
+    const itemCbs = /** @type {NodeListOf<HTMLInputElement>} */ (
+      this._listEl.querySelectorAll('.r-wishlist-item__cb:not(:disabled)')
+    );
+    itemCbs.forEach((cb) => { cb.checked = checked; });
+    this._updateBulkBtn(checked ? itemCbs.length : 0);
+  }
+
+  /**
+   * Sync the select-all tri-state and button label after individual checkboxes change.
+   * Called by each item checkbox's change listener.
+   */
+  _syncSelectAll() {
+    const all = /** @type {HTMLInputElement[]} */ (
+      [...this._listEl.querySelectorAll('.r-wishlist-item__cb:not(:disabled)')]
+    );
+    const checked = all.filter((cb) => cb.checked);
+
+    if (this._selectAllCb) {
+      if (checked.length === 0) {
+        this._selectAllCb.checked = false;
+        this._selectAllCb.indeterminate = false;
+      } else if (checked.length === all.length) {
+        this._selectAllCb.checked = true;
+        this._selectAllCb.indeterminate = false;
+      } else {
+        this._selectAllCb.checked = false;
+        this._selectAllCb.indeterminate = true;
+      }
+    }
+
+    this._updateBulkBtn(checked.length);
+  }
+
+  /**
+   * Update the "Add X selected to cart" button label and disabled state.
+   * @param {number} count
+   */
+  _updateBulkBtn(count) {
+    if (!this._addSelectedBtn) return;
+    this._addSelectedBtn.disabled = count === 0;
+    this._addSelectedBtn.textContent =
+      count > 0
+        ? `Add ${count} item${count === 1 ? '' : 's'} to cart`
+        : 'Add to cart';
+    if (this._bulkCountEl) {
+      this._bulkCountEl.textContent = count > 0 ? `${count} selected` : '';
+    }
+  }
+
+  /**
+   * Returns the numeric Shopify variant ID for the currently selected (or default)
+   * variant of a wishlist item <li>, or null if the variant is sold out / unavailable.
+   * @param {HTMLElement} li
+   * @returns {string|null}
+   */
+  _getAvailableVariantId(li) {
+    if (!li) return null;
+    const select = /** @type {HTMLSelectElement|null} */ (
+      li.querySelector('.r-wishlist-item__variant-select')
+    );
+    if (select) {
+      const opt = select.options[select.selectedIndex];
+      if (opt?.dataset.available === 'false') return null;
+      return opt?.value ? opt.value.split('/').pop() ?? null : null;
+    }
+    const atcBtn = /** @type {HTMLButtonElement|null} */ (
+      li.querySelector('.r-wishlist-item__atc')
+    );
+    return atcBtn?.dataset.variantGid
+      ? atcBtn.dataset.variantGid.split('/').pop() ?? null
+      : null;
+  }
+
+  /**
+   * Add all checked (and available) items to the Shopify cart in a single request.
+   */
+  async _addSelectedToCart() {
+    const checkedCbs = /** @type {HTMLInputElement[]} */ (
+      [...this._listEl.querySelectorAll('.r-wishlist-item__cb:checked')]
+    );
+    if (!checkedCbs.length) return;
+
+    const cartItems = checkedCbs.reduce((acc, cb) => {
+      const li = /** @type {HTMLElement|null} */ (cb.closest('.r-wishlist-item'));
+      const variantId = this._getAvailableVariantId(li);
+      if (variantId) acc.push({ id: Number(variantId), quantity: 1 });
+      return acc;
+    }, /** @type {{ id: number; quantity: number }[]} */ ([]));
+
+    if (!cartItems.length) return;
+
+    const btn = this._addSelectedBtn;
+    const originalText = btn?.textContent ?? '';
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+    try {
+      const res = await fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cartItems }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+
+      // Refresh cart badge and components without opening the cart drawer
+      const cartRes = await fetch('/cart.js');
+      if (cartRes.ok) {
+        const cart = await cartRes.json();
+        const cartDrawer = document.querySelector('cart-drawer');
+        const hadAutoOpen = cartDrawer?.hasAttribute('auto-open');
+        if (hadAutoOpen) cartDrawer.removeAttribute('auto-open');
+
+        document.dispatchEvent(
+          new CustomEvent('cart:update', {
+            bubbles: true,
+            detail: {
+              resource: cart,
+              sourceId: 'r-wishlist-header',
+              data: { itemCount: cart.item_count },
+            },
+          })
+        );
+
+        if (hadAutoOpen) cartDrawer.setAttribute('auto-open', '');
+      }
+
+      if (btn) { btn.textContent = `✓ Added ${cartItems.length}`; }
+      setTimeout(() => {
+        if (btn) { btn.textContent = originalText; btn.disabled = false; }
+      }, 2000);
+    } catch (err) {
+      console.warn('[r-wishlist-header] bulk add to cart failed:', err);
+      if (btn) { btn.textContent = originalText; this._syncSelectAll(); }
     }
   }
 

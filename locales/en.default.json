@@ -365,7 +365,10 @@
       "item_count": "items in wishlist",
       "empty": "Your wishlist is empty.",
       "guest_note": "Log in to save your wishlist across devices.",
-      "view_all": "View full wishlist"
+      "view_all": "View full wishlist",
+      "select_all": "Select all items",
+      "select_all_label": "Select all",
+      "add_to_cart": "Add to cart"
     }
   }
 }

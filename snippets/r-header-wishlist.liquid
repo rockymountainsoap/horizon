@@ -77,6 +77,18 @@
       </div>
 
       <div class="r-wishlist-dialog__content" aria-live="polite" aria-busy="false">
+        {%- comment -%} Sticky bulk-select toolbar — shown by JS when items exist {%- endcomment -%}
+        <div class="r-wishlist-dialog__bulk-bar" hidden>
+          <label class="r-wishlist-dialog__select-all">
+            <input
+              type="checkbox"
+              class="r-wishlist-dialog__select-all-cb"
+              aria-label="{{ 'rocky.wishlist.select_all' | t: default: 'Select all items' }}"
+            >
+            <span>{{ 'rocky.wishlist.select_all_label' | t: default: 'Select all' }}</span>
+          </label>
+          <span class="r-wishlist-dialog__bulk-count" aria-live="polite"></span>
+        </div>
         <div class="r-wishlist-dialog__loading">
           <span class="r-wishlist-dialog__spinner" aria-hidden="true"></span>
           <span class="visually-hidden">{{ 'accessibility.loading' | t }}</span>
@@ -91,9 +103,17 @@
       </div>
 
       <div class="r-wishlist-dialog__footer">
+        <button
+          type="button"
+          class="button r-wishlist-dialog__add-selected"
+          disabled
+          hidden
+        >
+          {{ 'rocky.wishlist.add_to_cart' | t: default: 'Add to cart' }}
+        </button>
         <a
           href="/account"
-          class="button r-wishlist-dialog__view-all"
+          class="button button--secondary r-wishlist-dialog__view-all"
           hidden
         >
           {{ 'rocky.wishlist.view_all' | t: default: 'View full wishlist' }}
@@ -277,6 +297,54 @@
     to { transform: rotate(360deg); }
   }
 
+  /* ── Bulk-select toolbar ── */
+  .r-wishlist-dialog__bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--gap-sm, 0.6rem) var(--r-wishlist-padding);
+    border-bottom: var(--style-border-width) solid var(--color-border);
+    background: var(--color-background);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  @media screen and (min-width: 750px) {
+    .r-wishlist-dialog__bulk-bar {
+      padding-inline: var(--r-wishlist-padding-desktop);
+    }
+  }
+
+  .r-wishlist-dialog__select-all {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs, 0.5rem);
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .r-wishlist-dialog__select-all-cb {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: var(--color-primary-button-background, #000);
+  }
+
+  .r-wishlist-dialog__select-all-cb:focus-visible {
+    outline: 0.2rem solid rgba(var(--color-foreground), 0.5);
+    outline-offset: 0.2rem;
+  }
+
+  .r-wishlist-dialog__bulk-count {
+    font-size: 0.8rem;
+    opacity: 0.6;
+  }
+
   /* ── Product list — mirrors .cart-drawer__items ── */
   .r-wishlist-dialog__list {
     list-style: none;
@@ -295,14 +363,34 @@
     }
   }
 
-  /* ── Product row ── */
+  /* ── Product row — 4-col grid: [cb] [img] [info] [remove] ── */
   .r-wishlist-item {
     display: grid;
-    grid-template-columns: 72px 1fr auto;
+    grid-template-columns: 20px 72px 1fr auto;
     gap: var(--gap-md, 1.2rem);
-    align-items: start;
+    align-items: center;
     padding-bottom: var(--gap-xl);
     border-bottom: var(--style-border-width) solid var(--color-border);
+  }
+
+  /* ── Item checkbox (vertically centered with image + row content) ── */
+  .r-wishlist-item__cb {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: var(--color-primary-button-background, #000);
+  }
+
+  .r-wishlist-item__cb:focus-visible {
+    outline: 0.2rem solid rgba(var(--color-foreground), 0.5);
+    outline-offset: 0.2rem;
+  }
+
+  .r-wishlist-item__cb:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
   }
 
   .r-wishlist-item:last-child {
@@ -489,6 +577,23 @@
     .r-wishlist-dialog__footer {
       padding: var(--r-wishlist-padding-desktop);
     }
+  }
+
+  .r-wishlist-dialog__footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm, 0.6rem);
+  }
+
+  .r-wishlist-dialog__add-selected {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  .r-wishlist-dialog__add-selected:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .r-wishlist-dialog__view-all {
