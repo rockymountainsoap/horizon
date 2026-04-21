@@ -4,6 +4,9 @@ import { handleExtRemove } from './handlers/extRemove.js';
 import { handleList } from './handlers/list.js';
 import { handleMerge } from './handlers/merge.js';
 import { handleProducts } from './handlers/products.js';
+import { handleAdminPage } from './handlers/adminPage.js';
+import { handleAdminStats } from './handlers/adminStats.js';
+import { handleAdminCsv } from './handlers/adminCsv.js';
 
 /**
  * Match wishlist API paths whether they arrive via direct URL or
@@ -47,15 +50,16 @@ export default {
       });
     }
 
-    // ── Root ──
-    if (path === '/' && method === 'GET') {
-      return new Response(
-        '<html><head><title>Rocky Wishlist</title></head><body>' +
-          '<p>Rocky wishlist worker is running.</p>' +
-          '</body></html>',
-        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-      );
+    // ── Root ── When loaded inside the Shopify admin iframe, show the admin
+    // page. Same for an explicit /admin request. The admin page authenticates
+    // all data fetches via App Bridge session tokens (see adminAuth.js).
+    if ((path === '/' || path === '/admin') && method === 'GET') {
+      return handleAdminPage(request, env);
     }
+
+    // ── Admin API routes (App Bridge session token auth) ──
+    if (path === '/admin/stats' && method === 'GET') return handleAdminStats(request, env);
+    if (path === '/admin/stats.csv' && method === 'GET') return handleAdminCsv(request, env);
 
     // ── Wishlist API routes ──
     if (matchesWishlistPath(path, '/wishlist/add') && method === 'POST') return handleAdd(request, env);

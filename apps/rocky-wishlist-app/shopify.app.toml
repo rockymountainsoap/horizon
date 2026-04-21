@@ -4,7 +4,9 @@
 name = "rocky-wishlist-app"
 client_id = "ebe31aebe73b979149df832d1e1f17bb"
 application_url = "https://native-wishlist-worker.rocky-mountain-soap.workers.dev"
-embedded = false
+# Admin app page is served by the Worker at /admin. App Bridge session tokens
+# authenticate the stats endpoints (/admin/stats, /admin/stats.csv).
+embedded = true
 
 web_directories = []
 

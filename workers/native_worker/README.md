@@ -14,7 +14,21 @@ Implements the WS0 wishlist API routes, served behind Shopify's App Proxy with H
 | POST | `/wishlist/merge` | Customer | Body: `{ "local": ["gid://..."] }` |
 | GET | `/wishlist/products` | Any | Query: `?ids=gid://...` — product details for drawer |
 | GET | `/wishlist/health` or `/health` | None | Liveness check |
-| GET | `/` | None | Status page |
+| GET | `/` or `/admin` | App Bridge | Embedded admin page (HTML) |
+| GET | `/admin/stats` | Admin session token | Aggregated wishlist stats (JSON, KV-cached 10 min). `?refresh=1` bypasses cache. |
+| GET | `/admin/stats.csv` | Admin session token | CSV export: one row per (customer, product) pair |
+
+## Admin page (`/admin`)
+
+Served to the Shopify admin iframe when a staff user opens the app. The HTML
+is static — all data loads via `fetch()` with an App Bridge session token
+(`shopify.idToken()`). Admin routes are authenticated by
+`src/middleware/adminAuth.js`, which verifies the JWT and confirms `dest`
+matches `env.SHOP_DOMAIN`.
+
+Stats are aggregated by paginating every customer (up to 500 pages × 100) and
+reading the `$app/saved_products` metafield inline. The aggregate payload is
+cached in `APP_KV` under `admin_stats_v1` for `ADMIN_STATS_TTL_SECONDS`.
 
 ## Setup (one-time)
 

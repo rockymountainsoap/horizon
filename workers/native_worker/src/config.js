@@ -16,3 +16,15 @@ export const TOKEN_CACHE_KEY = 'cc_access_token';
  * guarantee a fresh token is acquired well before expiry.
  */
 export const TOKEN_CACHE_TTL_SECONDS = 82_800;
+
+/** KV key for the cached aggregated admin stats payload. */
+export const ADMIN_STATS_CACHE_KEY = 'admin_stats_v1';
+
+/** How long to cache aggregated admin stats (seconds). */
+export const ADMIN_STATS_TTL_SECONDS = 600; // 10 minutes
+
+/** Number of most-wishlisted products resolved for the admin view. */
+export const ADMIN_TOP_PRODUCTS = 20;
+
+/** Number of recent wishlist rows surfaced in the activity feed. */
+export const ADMIN_RECENT_ROWS = 25;
