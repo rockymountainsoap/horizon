@@ -1,7 +1,7 @@
 # WS0 native wishlist — Shopify app configuration.
 # Extensions + Cloudflare Worker only — no local web process.
 
-name = "rocky-wishlist-app"
+name = "Rocky Wishlist"
 client_id = "ebe31aebe73b979149df832d1e1f17bb"
 application_url = "https://native-wishlist-worker.rocky-mountain-soap.workers.dev"
 # Admin app page is served by the Worker at /admin. App Bridge session tokens

@@ -21,7 +21,7 @@ function renderHtml(clientId, shop) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="shopify-api-key" content="${clientId}" />
-  <title>Rocky Wishlist</title>
+  <title>Rocky Wishlist ♥</title>
   <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   <style>
     :root {
@@ -179,13 +179,26 @@ function renderHtml(clientId, shop) {
     .r-flex-between {
       display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
     }
+    .r-link {
+      display: inline-flex; align-items: center; gap: 3px;
+      color: var(--accent); text-decoration: none; font-size: 12px; white-space: nowrap;
+    }
+    .r-link:hover { text-decoration: underline; }
+    .r-pager {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; padding: 12px 0 2px;
+    }
+    .r-pager__info { color: var(--text-subdued); font-size: 13px; }
+    .r-btn--sm { padding: 5px 10px; font-size: 12px; }
   </style>
 </head>
 <body>
   <main class="r-admin">
     <header class="r-admin__header">
       <div>
-        <h1 class="r-admin__title">Rocky Wishlist</h1>
+        <h1 class="r-admin__title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#e04050" aria-hidden="true" style="vertical-align:middle;margin-right:7px;flex-shrink:0"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>Rocky Wishlist
+        </h1>
         <p class="r-admin__subtitle">Store: <span id="shop-domain">${shop}</span></p>
       </div>
       <div class="r-admin__actions">
@@ -226,6 +239,12 @@ function renderHtml(clientId, shop) {
 
   <script>
     (function () {
+      const PAGE_SIZE = 20;
+      let _topProducts = [];
+      let _recent = [];
+      let topPage = 0;
+      let recentPage = 0;
+
       const statsUrl = '/admin/stats';
       const csvUrl = '/admin/stats.csv';
       const banner = document.getElementById('banner');
@@ -277,16 +296,18 @@ function renderHtml(clientId, shop) {
         el('generated').title = fmtDate(data.generatedAt);
       }
 
-      function renderTopProducts(data) {
+      function renderTopProducts() {
         const container = document.getElementById('top-products-container');
-        const products = data.topProducts || [];
-        document.getElementById('top-meta').textContent =
-          products.length ? products.length + ' products' : '';
-        if (!products.length) {
+        const total = _topProducts.length;
+        document.getElementById('top-meta').textContent = total ? total + ' products' : '';
+        if (!total) {
           container.innerHTML = '<p class="r-empty">No wishlisted products yet.</p>';
           return;
         }
-        const rows = products.map((p, i) => {
+        const start = topPage * PAGE_SIZE;
+        const pageItems = _topProducts.slice(start, start + PAGE_SIZE);
+        const rows = pageItems.map((p, i) => {
+          const rank = start + i + 1;
           const statusPill = p.status === 'ACTIVE'
             ? ''
             : '<span class="r-pill r-pill--warn">' + (p.status || 'unknown').toLowerCase() + '</span>';
@@ -298,7 +319,7 @@ function renderHtml(clientId, shop) {
             : '<div class="r-product__image"></div>';
           return (
             '<tr>' +
-              '<td style="width:40px">' + (i + 1) + '</td>' +
+              '<td style="width:40px">' + rank + '</td>' +
               '<td>' +
                 '<div class="r-product">' + img +
                 '<div class="r-product__text">' +
@@ -315,18 +336,32 @@ function renderHtml(clientId, shop) {
           '<table class="r-table">' +
             '<thead><tr><th>#</th><th>Product</th><th>Status</th><th style="text-align:right">Wishlists</th></tr></thead>' +
             '<tbody>' + rows + '</tbody>' +
-          '</table>';
+          '</table>' +
+          buildPager(topPage, total, 'top');
+        container.querySelectorAll('[data-pager="top"]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            topPage = +btn.dataset.page;
+            renderTopProducts();
+          });
+        });
       }
 
-      function renderRecent(data) {
+      function renderRecent() {
         const container = document.getElementById('recent-container');
-        const rows = (data.recent || []);
-        if (!rows.length) {
+        const total = _recent.length;
+        if (!total) {
           container.innerHTML = '<p class="r-empty">No recent activity.</p>';
           return;
         }
-        const body = rows.map((r) => {
+        const start = recentPage * PAGE_SIZE;
+        const pageItems = _recent.slice(start, start + PAGE_SIZE);
+        const body = pageItems.map((r) => {
           const label = r.name || r.email || '(anonymous)';
+          const klaviyoCell = r.email
+            ? '<a class="r-link" href="https://www.klaviyo.com/people?search=' +
+                encodeURIComponent(r.email) +
+                '" target="_blank" rel="noopener noreferrer">Klaviyo&nbsp;↗</a>'
+            : '<span class="r-muted">—</span>';
           return (
             '<tr>' +
               '<td>' + escapeHtml(label) + '</td>' +
@@ -335,14 +370,30 @@ function renderHtml(clientId, shop) {
               '<td style="width:160px" title="' + escapeAttr(fmtDate(r.updatedAt)) + '">' +
                 escapeHtml(fmtRelative(r.updatedAt) || '—') +
               '</td>' +
+              '<td style="width:90px">' + klaviyoCell + '</td>' +
             '</tr>'
           );
         }).join('');
         container.innerHTML =
           '<table class="r-table">' +
-            '<thead><tr><th>Customer</th><th>Email</th><th style="text-align:right">Items</th><th>Updated</th></tr></thead>' +
+            '<thead><tr><th>Customer</th><th>Email</th><th style="text-align:right">Items</th><th>Updated</th><th>Profile</th></tr></thead>' +
             '<tbody>' + body + '</tbody>' +
-          '</table>';
+          '</table>' +
+          buildPager(recentPage, total, 'recent');
+        container.querySelectorAll('[data-pager="recent"]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            recentPage = +btn.dataset.page;
+            renderRecent();
+          });
+        });
+      }
+
+      function buildPager(page, total, containerId) {
+        const pages = Math.ceil(total / PAGE_SIZE);
+        if (pages <= 1) return '';
+        const prev = '<button class="r-btn r-btn--sm" data-pager="' + containerId + '" data-page="' + (page - 1) + '"' + (page === 0 ? ' disabled' : '') + '>← Prev</button>';
+        const next = '<button class="r-btn r-btn--sm" data-pager="' + containerId + '" data-page="' + (page + 1) + '"' + (page >= pages - 1 ? ' disabled' : '') + '>Next →</button>';
+        return '<div class="r-pager">' + prev + '<span class="r-pager__info">Page ' + (page + 1) + ' of ' + pages + '</span>' + next + '</div>';
       }
 
       function escapeHtml(s) {
@@ -367,9 +418,13 @@ function renderHtml(clientId, shop) {
           if (!res.ok || !data.ok) {
             throw new Error(data.reason || ('HTTP ' + res.status));
           }
+          _topProducts = data.topProducts || [];
+          _recent = data.recent || [];
+          topPage = 0;
+          recentPage = 0;
           renderKpis(data);
-          renderTopProducts(data);
-          renderRecent(data);
+          renderTopProducts();
+          renderRecent();
           btnRefresh.textContent = data.cached ? 'Refresh (cached)' : 'Refresh';
         } catch (err) {
           showError('Failed to load stats: ' + (err?.message || err));

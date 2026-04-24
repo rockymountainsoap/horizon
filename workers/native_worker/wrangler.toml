@@ -12,6 +12,7 @@
 #
 # Optional:
 #   wrangler kv namespace create NONCE_KV          (replay protection)
+#   wrangler secret put KLAVIYO_PRIVATE_KEY         (Klaviyo private API key, pk_…)
 
 name = "native-wishlist-worker"
 main = "native_worker.js"
@@ -26,6 +27,7 @@ HMAC_MAX_AGE_SECONDS = "300"
 SHOP_DOMAIN = "rocky-horizon-development.myshopify.com"
 SHOP_MYSHOPIFY_DOMAIN = "rocky-horizon-development.myshopify.com"
 SHOPIFY_CLIENT_ID = "ebe31aebe73b979149df832d1e1f17bb"
+KLAVIYO_API_REVISION = "2024-10-15"
 
 # ── KV: token cache + optional nonce store ──
 [[kv_namespaces]]
@@ -63,6 +65,7 @@ HMAC_MAX_AGE_SECONDS = "300"
 SHOP_DOMAIN = "rocky-mountain-soap.myshopify.com"
 SHOP_MYSHOPIFY_DOMAIN = "rocky-mountain-soap.myshopify.com"
 SHOPIFY_CLIENT_ID = "ebe31aebe73b979149df832d1e1f17bb"
+KLAVIYO_API_REVISION = "2024-10-15"
 
 # Production needs its own KV namespace (create with: wrangler kv namespace create APP_KV --env production)
 # [[env.production.kv_namespaces]]

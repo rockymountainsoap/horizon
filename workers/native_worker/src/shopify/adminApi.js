@@ -48,6 +48,7 @@ export async function getWishlist(customerId, shop, token) {
     token,
     `query GetWishlist($id: ID!) {
       customer(id: $id) {
+        email
         metafield(namespace: "${NAMESPACE}", key: "${KEY}") {
           id
           value
@@ -65,10 +66,12 @@ export async function getWishlist(customerId, shop, token) {
     throw new Error('Failed to read wishlist');
   }
 
-  const metafield = data.data?.customer?.metafield;
+  const customer = data.data?.customer;
+  const metafield = customer?.metafield;
   return {
     list: parseListValue(metafield?.value),
     metafieldId: metafield?.id ?? null,
+    email: customer?.email ?? null,
   };
 }
 

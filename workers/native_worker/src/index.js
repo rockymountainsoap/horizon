@@ -34,9 +34,9 @@ export default {
   /**
    * @param {Request} request
    * @param {Record<string, unknown>} env
-   * @param {ExecutionContext} _ctx
+   * @param {ExecutionContext} ctx
    */
-  async fetch(request, env, _ctx) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
@@ -62,14 +62,14 @@ export default {
     if (path === '/admin/stats.csv' && method === 'GET') return handleAdminCsv(request, env);
 
     // ── Wishlist API routes ──
-    if (matchesWishlistPath(path, '/wishlist/add') && method === 'POST') return handleAdd(request, env);
-    if (matchesWishlistPath(path, '/wishlist/remove') && method === 'POST') return handleRemove(request, env);
+    if (matchesWishlistPath(path, '/wishlist/add') && method === 'POST') return handleAdd(request, env, ctx);
+    if (matchesWishlistPath(path, '/wishlist/remove') && method === 'POST') return handleRemove(request, env, ctx);
     // Extension-direct remove: called by Customer Account UI extensions using a
     // session token (Authorization: Bearer <JWT>). Bypasses App Proxy — which
     // cannot forward cross-origin requests from extensions.shopifycdn.com.
-    if (path === '/wishlist/ext/remove' && method === 'POST') return handleExtRemove(request, env);
+    if (path === '/wishlist/ext/remove' && method === 'POST') return handleExtRemove(request, env, ctx);
     if (matchesWishlistPath(path, '/wishlist/list') && method === 'GET') return handleList(request, env);
-    if (matchesWishlistPath(path, '/wishlist/merge') && method === 'POST') return handleMerge(request, env);
+    if (matchesWishlistPath(path, '/wishlist/merge') && method === 'POST') return handleMerge(request, env, ctx);
     if (matchesWishlistPath(path, '/wishlist/products') && method === 'GET') return handleProducts(request, env);
 
     return new Response('Not Found', { status: 404 });

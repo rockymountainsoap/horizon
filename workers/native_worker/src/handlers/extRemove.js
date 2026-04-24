@@ -18,13 +18,14 @@ import { getWishlist, setWishlist } from '../shopify/adminApi.js';
 import { getAdminToken } from '../shopify/tokens.js';
 import { jsonResponse } from '../utils/response.js';
 import { ValidationError } from '../utils/errors.js';
+import { syncWishlistChange } from '../klaviyo/sync.js';
 
 /**
  * @param {Request} request
  * @param {Record<string, unknown>} env
  * @returns {Promise<Response>}
  */
-export async function handleExtRemove(request, env) {
+export async function handleExtRemove(request, env, ctx) {
   // Validate session token from Authorization header
   const authHeader = request.headers.get('Authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
@@ -52,11 +53,17 @@ export async function handleExtRemove(request, env) {
     const body = await parseBody(request);
     const productGid = validateProductGid(body.productGid);
 
-    const { list } = await getWishlist(customerId, shop, adminToken);
+    const { list, email } = await getWishlist(customerId, shop, adminToken);
     const updated = list.filter((gid) => gid !== productGid);
 
     if (updated.length !== list.length) {
       await setWishlist(customerId, updated, shop, adminToken);
+
+      if (email && env.KLAVIYO_PRIVATE_KEY) {
+        ctx.waitUntil(
+          syncWishlistChange(env, shop, adminToken, customerId, email, 'remove', productGid, updated)
+        );
+      }
     }
 
     return jsonResponse({ ok: true, list: updated }, 200, request, env);

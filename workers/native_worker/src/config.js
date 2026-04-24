@@ -24,7 +24,7 @@ export const ADMIN_STATS_CACHE_KEY = 'admin_stats_v1';
 export const ADMIN_STATS_TTL_SECONDS = 600; // 10 minutes
 
 /** Number of most-wishlisted products resolved for the admin view. */
-export const ADMIN_TOP_PRODUCTS = 20;
+export const ADMIN_TOP_PRODUCTS = 100;
 
 /** Number of recent wishlist rows surfaced in the activity feed. */
-export const ADMIN_RECENT_ROWS = 25;
+export const ADMIN_RECENT_ROWS = 100;

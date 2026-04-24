@@ -17,6 +17,7 @@ Implements the WS0 wishlist API routes, served behind Shopify's App Proxy with H
 | GET | `/` or `/admin` | App Bridge | Embedded admin page (HTML) |
 | GET | `/admin/stats` | Admin session token | Aggregated wishlist stats (JSON, KV-cached 10 min). `?refresh=1` bypasses cache. |
 | GET | `/admin/stats.csv` | Admin session token | CSV export: one row per (customer, product) pair |
+| POST | `/wishlist/ext/remove` | Session token JWT | Remove from extension context (bypasses App Proxy) |
 
 ## Admin page (`/admin`)
 
@@ -50,12 +51,23 @@ wrangler secret put SHOPIFY_CLIENT_SECRET
 This secret is used for both:
 - **App Proxy HMAC verification** — Shopify signs every proxied request with this secret
 - **Client Credentials Grant** — exchanged (with `SHOPIFY_CLIENT_ID`) for a 24h Admin API token
+- **Session token verification** — Customer Account UI extensions authenticate direct Worker calls with a JWT signed by this secret
+
+### 2b. Set the Klaviyo private key (optional)
+
+```bash
+wrangler secret put KLAVIYO_PRIVATE_KEY
+# Paste the Klaviyo private API key (pk_…) from Klaviyo → Settings → API Keys
+```
+
+When set, the Worker syncs wishlist mutations to Klaviyo as a background task (`ctx.waitUntil`) — no added latency on wishlist responses. If absent, the sync silently skips.
 
 ### 3. Configure vars
 
 In `wrangler.toml`, set:
 - `SHOPIFY_CLIENT_ID` — the app's Client ID from the Dev Dashboard
-- `SHOP_DOMAIN` — the store's `.myshopify.com` hostname
+- `SHOP_DOMAIN` / `SHOP_MYSHOPIFY_DOMAIN` — the store's `.myshopify.com` hostname
+- `KLAVIYO_API_REVISION` — already set to `2024-10-15` in `wrangler.toml`; update if Klaviyo releases a newer revision
 
 ### 4. Deploy
 
@@ -100,20 +112,42 @@ src/
 ├── handlers/
 │   ├── add.js             # POST /wishlist/add
 │   ├── remove.js          # POST /wishlist/remove
+│   ├── extRemove.js       # POST /wishlist/ext/remove (session token auth)
 │   ├── list.js            # GET  /wishlist/list
 │   ├── merge.js           # POST /wishlist/merge
 │   └── products.js        # GET  /wishlist/products
+├── klaviyo/
+│   └── sync.js            # Klaviyo background sync (events + profile properties)
 ├── middleware/
 │   ├── hmac.js            # HMAC verification (App Proxy)
 │   ├── security.js        # withSecurity() middleware chain
 │   └── validate.js        # Input validators
 ├── shopify/
-│   ├── adminApi.js        # Admin GraphQL helpers (getWishlist, setWishlist)
+│   ├── adminApi.js        # Admin GraphQL helpers (getWishlist, setWishlist, collectAllWishlists)
+│   ├── sessionToken.js    # Session token verification for extension auth
 │   └── tokens.js          # Client Credentials token acquisition + caching
 └── utils/
     ├── errors.js          # AuthError, ValidationError, RateLimitError
     └── response.js        # CORS, security headers, JSON responses
 ```
+
+## Klaviyo sync
+
+When `KLAVIYO_PRIVATE_KEY` is set, each wishlist mutation triggers a background sync to Klaviyo using `ctx.waitUntil()` — the wishlist response is returned immediately and the Klaviyo calls happen after.
+
+**Per-mutation (add / remove / ext/remove)** — `src/klaviyo/sync.js: syncWishlistChange()`
+1. Fetches product details (title, handle, image, first variant price) from the Admin API
+2. POSTs an `Added to Wishlist` or `Removed from Wishlist` event to `POST /api/events/`
+3. Upserts `WishlistCount` + `WishlistProductGids` profile properties via `POST /api/profile-import/`
+
+**On guest-to-server merge** — `syncWishlistMerge()`
+- Updates profile properties only; no per-item events (a merge may involve many items at once)
+
+**Profile matching:** Profiles are identified by `email` (fetched inline alongside the wishlist metafield — no extra round-trip) and `external_id` set to the numeric Shopify customer ID.
+
+**Failure handling:** All Klaviyo errors are caught and logged; they never propagate to the wishlist response. If `KLAVIYO_PRIVATE_KEY` is absent or `email` is null, the sync skips silently.
+
+**Klaviyo revision:** `KLAVIYO_API_REVISION` in `wrangler.toml` (currently `2024-10-15`). Update the var if Klaviyo releases a newer revision.
 
 ## Optional features
 
