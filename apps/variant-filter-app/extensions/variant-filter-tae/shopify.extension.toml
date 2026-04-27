@@ -1,0 +1,7 @@
+api_version = "2025-04"
+
+[[extensions]]
+uid = "fa3c060f-8da2-73b8-6eee-935cbc178cd8ac5a6ac9"
+type   = "theme"
+name   = "Variant Filter"
+handle = "variant-filter"

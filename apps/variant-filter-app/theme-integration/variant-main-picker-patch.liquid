@@ -1,0 +1,62 @@
+{%- comment -%}
+  Reference: exact patch applied to snippets/variant-main-picker.liquid
+  Lines marked NEW are the insertions. See INTEGRATION_GUIDE.md for full context.
+  This file contains two inner loops — both are patched identically.
+{%- endcomment -%}
+
+
+{{- '--- OUTER LOOP (approx. line 36) ---' -}}
+
+    {%- for product_option in product_resource.options_with_values -%}
+
+      {%- # variant-filter app — pre-check: bypass filter if no values match this product -%}  {%- # NEW -%}
+      {%- capture vf_bypass_signal -%}                                                         {%- # NEW -%}
+        {%- render 'variant-filter--precheck', product_option: product_option -%}              {%- # NEW -%}
+      {%- endcapture -%}                                                                       {%- # NEW -%}
+      {%- assign vf_bypass = false -%}                                                         {%- # NEW -%}
+      {%- if vf_bypass_signal == 'bypass' -%}{%- assign vf_bypass = true -%}{%- endif -%}     {%- # NEW -%}
+
+      ... existing single-value check / fieldset open ...
+
+
+{{- '--- INNER LOOP A: buttons / swatches (approx. line 83, inside <fieldset>) ---' -}}
+
+            {%- for product_option_value in product_option.values -%}
+
+              {%- # variant-filter app — skip values excluded by the collection rule -%}  {%- # NEW -%}
+              {%- capture vf_skip -%}                                                     {%- # NEW -%}
+                {%- render 'variant-filter--filter',                                      {%- # NEW -%}
+                    product_option: product_option,                                       {%- # NEW -%}
+                    product_option_value: product_option_value,                           {%- # NEW -%}
+                    vf_bypass: vf_bypass -%}                                              {%- # NEW -%}
+              {%- endcapture -%}                                                          {%- # NEW -%}
+              {%- unless vf_skip == 'skip' -%}                                            {%- # NEW -%}
+
+                ... existing longest_value assignment ...
+                <label class="variant-option__button-label...">
+                  ... existing input + swatch/pill markup ...
+                </label>
+
+              {%- endunless -%}  {%- # NEW -%}
+            {%- endfor -%}
+
+
+{{- '--- INNER LOOP B: dropdowns (approx. line 186, inside <select>) ---' -}}
+
+                {%- for product_option_value in product_option.values -%}
+
+                  {%- # variant-filter app — skip values excluded by the collection rule -%}  {%- # NEW -%}
+                  {%- capture vf_skip -%}                                                     {%- # NEW -%}
+                    {%- render 'variant-filter--filter',                                      {%- # NEW -%}
+                        product_option: product_option,                                       {%- # NEW -%}
+                        product_option_value: product_option_value,                           {%- # NEW -%}
+                        vf_bypass: vf_bypass -%}                                              {%- # NEW -%}
+                  {%- endcapture -%}                                                          {%- # NEW -%}
+                  {%- unless vf_skip == 'skip' -%}                                            {%- # NEW -%}
+
+                    <option value="{{ product_option_value | escape }}" ...>
+                      ...
+                    </option>
+
+                  {%- endunless -%}  {%- # NEW -%}
+                {%- endfor -%}

@@ -1,0 +1,83 @@
+{%- comment -%}
+  TAE snippet: variant-filter--filter
+  Deployed name: variant-filter--filter.liquid
+
+  Called inside EVERY `for product_option_value` loop (swatches, buttons,
+  dropdowns). Outputs "skip" to suppress the current value, or "" to show it.
+
+  Parameters (must be passed — render scope is isolated):
+    product_option       — current options_with_values item
+    product_option_value — current value being iterated
+    vf_bypass            — boolean; if true, skips all filtering (fail-open)
+
+  Accesses:
+    collection — Shopify global, available without passing
+
+  Graceful degradation: any unexpected nil/blank input outputs "" (show all).
+  If this snippet file is absent (app not installed), {% capture %} returns ""
+  and the `unless "" == 'skip'` check passes — all variants render normally.
+{%- endcomment -%}
+
+{%- liquid
+  if vf_bypass
+    # Pre-check determined no values match for this product — show all.
+
+  else
+    assign vf_rule = collection.metafields['variant-filter']['rule'].value
+
+    if vf_rule == blank or vf_rule.option != product_option.name
+      # No rule, or rule targets a different option — show this value.
+
+    else
+      assign vf_value_name = product_option_value.name
+      assign vf_should_skip = false
+
+      if vf_rule.filterType == 'exact'
+        if vf_rule.values == blank
+          # Missing values array — fail open.
+        else
+          assign vf_value_matched = false
+          for vf_allowed in vf_rule.values
+            if vf_value_name == vf_allowed
+              assign vf_value_matched = true
+            endif
+          endfor
+          unless vf_value_matched
+            assign vf_should_skip = true
+          endunless
+        endif
+
+      elsif vf_rule.filterType == 'contains'
+        if vf_rule.values == blank
+          # Missing values array — fail open.
+        else
+          assign vf_value_matched = false
+          for vf_allowed in vf_rule.values
+            if vf_value_name contains vf_allowed
+              assign vf_value_matched = true
+            endif
+          endfor
+          unless vf_value_matched
+            assign vf_should_skip = true
+          endunless
+        endif
+
+      elsif vf_rule.filterType == 'size_range'
+        if vf_rule.maxMl == blank or vf_rule.maxMl == 0
+          # Missing/zero maxMl — fail open.
+        else
+          assign vf_numeric = vf_value_name | plus: 0
+          # Non-numeric strings produce 0 via plus:0 — treat as pass (show).
+          # size_range is documented to require ml-unit values (e.g. "100ml").
+          if vf_numeric > vf_rule.maxMl
+            assign vf_should_skip = true
+          endif
+        endif
+      endif
+
+      if vf_should_skip
+        echo 'skip'
+      endif
+    endif
+  endif
+-%}

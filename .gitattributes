@@ -67,6 +67,8 @@ snippets/product-card.liquid merge=ours
 snippets/quick-add.liquid merge=ours
 snippets/quick-add-modal.liquid merge=ours
 snippets/variant-swatches.liquid merge=ours
+snippets/variant-main-picker.liquid merge=ours
+blocks/_product-card.liquid merge=ours
 snippets/add-to-cart-button.liquid merge=ours
 snippets/product-information-content.liquid merge=ours
 

@@ -10,3 +10,5 @@ node_modules/
 .wrangler/
 dist/
 apps/**/.shopify/
+
+apps/variant-filter-app/build/

@@ -1,0 +1,92 @@
+{%- comment -%}
+  App block: variant-filter — collection badge
+  Displays the active variant filter rule as a storefront notice.
+  Add to the collection template via the Theme Editor (Templates tab).
+{%- endcomment -%}
+
+{%- liquid
+  assign vf_rule_mf = collection.metafields['variant-filter']['rule']
+  assign vf_rule = vf_rule_mf.value
+  assign vf_show = false
+
+  if vf_rule_mf != blank and block.settings.show_badge
+    assign vf_show = true
+  endif
+
+  if vf_show
+    if block.settings.badge_text_override != blank
+      assign vf_badge_text = block.settings.badge_text_override
+    else
+      assign vf_badge_text = vf_rule.label
+    endif
+  endif
+-%}
+
+{%- if vf_show -%}
+  <style>
+    .variant-filter-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--style-border-radius-inputs, 4px);
+      padding-inline: 1rem;
+    }
+
+    .variant-filter-badge__text {
+      margin: 0;
+      font-size: var(--font-body-size);
+      color: var(--color-foreground);
+    }
+  </style>
+  <div
+    class="variant-filter-badge"
+    style="
+      padding-block-start: {{ block.settings.padding_block_start }}px;
+      padding-block-end: {{ block.settings.padding_block_end }}px;
+    "
+    {{ block.shopify_attributes }}
+  >
+    <p class="variant-filter-badge__text">
+      {{- vf_badge_text | escape -}}
+    </p>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Variant Filter Badge",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_badge",
+      "label": "Show filter badge",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "badge_text_override",
+      "label": "Badge text override",
+      "info": "Leave empty to use the rule label set in the Variant Filter app."
+    },
+    {
+      "type": "header",
+      "content": "Padding"
+    },
+    {
+      "type": "range",
+      "id": "padding_block_start",
+      "label": "Top",
+      "min": 0, "max": 100, "step": 4, "unit": "px", "default": 16
+    },
+    {
+      "type": "range",
+      "id": "padding_block_end",
+      "label": "Bottom",
+      "min": 0, "max": 100, "step": 4, "unit": "px", "default": 16
+    }
+  ],
+  "templates": ["collection"]
+}
+{% endschema %}

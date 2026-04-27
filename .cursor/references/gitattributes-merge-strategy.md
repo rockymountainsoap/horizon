@@ -28,7 +28,8 @@ Mapped to the Phase 1 workback plan so only files we intentionally customize are
 | **Journal / Content** | `main-blog*`, `featured-blog-posts`, `main-page`, `main-404`, `search-results` | Journal index, article template, pages, 404, search (WS 4). |
 | **Templates** | `templates/*.json` (index, 404, product, collection, cart, blog, article, search, page, page.contact) | Section order and settings per page type; editor/customizations live here. |
 | **Locale** | `locales/en.default.json`, `locales/en.default.schema.json` | Primary language copy and schema labels. |
-| **Snippets** | `stylesheets.liquid`, `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `variant-swatches`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens, stylesheet loader (`r-base.css` is registered here), and high-touch UI reused across sections. |
+| **Snippets** | `stylesheets.liquid`, `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `variant-swatches`, `variant-main-picker`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens, stylesheet loader (`r-base.css` is registered here), and high-touch UI reused across sections. `variant-swatches` and `variant-main-picker` patched for variant-filter app (TAE render hooks). |
+| **Blocks** | `blocks/_product-card.liquid` | Schema extended to allow `r-variant-pills-atc` child block type (variant filter + ATC). |
 | **Rocky assets** | `assets/r-base.css` | Rocky-owned; no upstream equivalent. Listed for explicit intent. |
 
 ## Adding or Removing Paths

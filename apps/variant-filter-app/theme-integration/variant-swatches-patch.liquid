@@ -1,0 +1,40 @@
+{%- comment -%}
+  Reference: exact patch applied to snippets/variant-swatches.liquid
+  Lines marked NEW are the insertions; all other lines are existing upstream code.
+  See INTEGRATION_GUIDE.md for full context.
+{%- endcomment -%}
+
+{{- '--- OUTER LOOP (approx. line 86) ---' -}}
+
+  {%- for product_option in product_resource.options_with_values -%}
+
+    {%- # variant-filter app — pre-check: bypass filter if no values match this product -%}  {%- # NEW -%}
+    {%- capture vf_bypass_signal -%}                                                          {%- # NEW -%}
+      {%- render 'variant-filter--precheck', product_option: product_option -%}               {%- # NEW -%}
+    {%- endcapture -%}                                                                        {%- # NEW -%}
+    {%- assign vf_bypass = false -%}                                                          {%- # NEW -%}
+    {%- if vf_bypass_signal == 'bypass' -%}{%- assign vf_bypass = true -%}{%- endif -%}      {%- # NEW -%}
+
+    ... existing swatch_count check / fieldset open ...
+
+
+{{- '--- INNER LOOP (approx. line 104) ---' -}}
+
+          {%- for product_option_value in product_option.values -%}
+
+            {%- # variant-filter app — skip values excluded by the collection rule -%}  {%- # NEW -%}
+            {%- capture vf_skip -%}                                                     {%- # NEW -%}
+              {%- render 'variant-filter--filter',                                      {%- # NEW -%}
+                  product_option: product_option,                                       {%- # NEW -%}
+                  product_option_value: product_option_value,                           {%- # NEW -%}
+                  vf_bypass: vf_bypass -%}                                              {%- # NEW -%}
+            {%- endcapture -%}                                                          {%- # NEW -%}
+            {%- unless vf_skip == 'skip' -%}                                            {%- # NEW -%}
+
+              ... existing image resolution {% liquid %} block ...
+              <li class="variant-option__swatch">
+                ... existing swatch markup ...
+              </li>
+
+            {%- endunless -%}  {%- # NEW -%}
+          {%- endfor -%}

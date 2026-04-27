@@ -1,0 +1,29 @@
+# Variant Filter app — Shopify app configuration.
+# Cloudflare Worker + KV session storage. No local web process.
+
+name = "Variant Filter"
+client_id = "867c37ec032e1c1fc86da08742e31d7a"
+application_url = "https://variant-filter-app.rocky-mountain-soap.workers.dev"
+embedded = true
+
+[access_scopes]
+scopes = "read_products,write_products"
+
+[auth]
+redirect_urls = [
+  "https://variant-filter-app.rocky-mountain-soap.workers.dev/auth/callback",
+  "https://variant-filter-app.rocky-mountain-soap.workers.dev/auth/shopify/callback",
+  "http://localhost:8787/auth/callback",
+  "http://localhost:8787/auth/shopify/callback"
+]
+
+[webhooks]
+api_version = "2025-04"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks"
+
+[build]
+dev_store_url = "rocky-horizon-development.myshopify.com"
+automatically_update_urls_on_dev = true
