@@ -264,7 +264,13 @@ export class ProductCard extends ProductCardLink {
    * @param {VariantUpdateEvent} event - The variant update event.
    */
   updatePrice(event) {
-    const priceContainer = this.querySelectorAll(`product-price [ref='priceContainer']`)[1];
+    const priceContainers = this.querySelectorAll(`product-price [ref='priceContainer']`);
+    // Upstream uses index `[1]` because some configurations render an extra
+    // `<product-price>` (e.g. inside a quick-add card preview). Compact card
+    // layouts that only contain a single price block ship none at index 1, so
+    // fall back to the first match to keep the price live-updating in both
+    // shapes.
+    const priceContainer = priceContainers[1] ?? priceContainers[0];
     const newPriceElement = event.detail.data.html.querySelector(`product-price [ref='priceContainer']`);
 
     if (newPriceElement && priceContainer) {
@@ -366,7 +372,11 @@ export class ProductCard extends ProductCardLink {
    * @returns {VariantPicker | null} The variant picker component.
    */
   get variantPicker() {
-    return this.querySelector('swatches-variant-picker-component');
+    // Match either of the two pickers a card may render: the colour swatch
+    // picker (`swatches-variant-picker-component`) or the text-pill picker
+    // (`variant-buttons-component`, ours). Without this, cards that only have
+    // pills fail #updateVariantImages because `selectedOption` is null.
+    return this.querySelector('swatches-variant-picker-component, variant-buttons-component');
   }
   /** @type {number | null} */
   #previousSlideIndex = null;

@@ -74,10 +74,17 @@ export const SET_RULE = `#graphql
   }
 `;
 
+// Uses `metafieldsDelete` (plural) — the singular `metafieldDelete` was
+// removed from the Admin API in 2025-01. Identifies the metafield by
+// owner + namespace + key rather than GID.
 export const DELETE_RULE = `#graphql
-  mutation DeleteVariantFilterRule($metafieldId: ID!) {
-    metafieldDelete(input: { id: $metafieldId }) {
-      deletedId
+  mutation DeleteVariantFilterRule($metafields: [MetafieldIdentifierInput!]!) {
+    metafieldsDelete(metafields: $metafields) {
+      deletedMetafields {
+        ownerId
+        namespace
+        key
+      }
       userErrors {
         field
         message
@@ -85,3 +92,6 @@ export const DELETE_RULE = `#graphql
     }
   }
 `;
+
+export const METAFIELD_NAMESPACE = "variant-filter";
+export const METAFIELD_KEY = "rule";

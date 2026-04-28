@@ -88,7 +88,8 @@ apps/variant-filter-app/
 │       │   └── collection-filter-badge.liquid   # Storefront badge app block
 │       ├── snippets/
 │       │   ├── filter.liquid                    # Per-value filter logic → "skip" or ""
-│       │   └── precheck.liquid                  # Per-option pre-pass → "bypass" or ""
+│       │   ├── precheck.liquid                  # Per-option pre-pass → "bypass" or ""
+│       │   └── preselect.liquid                 # First rule-allowed variant id → "" or numeric id
 │       ├── locales/
 │       │   ├── en.default.json
 │       │   └── en.default.schema.json
@@ -97,7 +98,8 @@ apps/variant-filter-app/
 ├── theme-integration/                           # Reference docs — NOT deployed
 │   ├── INTEGRATION_GUIDE.md
 │   ├── variant-swatches-patch.liquid
-│   └── variant-main-picker-patch.liquid
+│   ├── variant-main-picker-patch.liquid
+│   └── product-card-patch.liquid
 │
 ├── public/
 │   └── shopify.svg
@@ -301,11 +303,14 @@ Render call from upstream snippets (outer loop):
 
 ---
 
-## Theme Patches — Three Insertion Points
+## Theme Patches — Four Insertion Points
 
-All patches follow the same structure:
+Three patches use the same precheck/filter structure on the variant rendering snippets.
+A fourth patch on `snippets/product-card.liquid` adds rule-based variant pre-selection.
+
 1. **Outer loop** (`for product_option`): add precheck + assign `vf_bypass`
 2. **Inner loop** (`for product_option_value`): add capture/unless wrapper
+3. **Product card** (`snippets/product-card.liquid`): render `variant-filter--preselect` and override `variant_to_link`
 
 ### File 1: `snippets/variant-swatches.liquid`
 
@@ -359,6 +364,23 @@ Close `{%- endunless -%}` before `{%- endfor -%}` (line 147).
 
 **Inner loop B (dropdowns)** — after `{%- for product_option_value in product_option.values -%}` (line 186):
 Same capture/unless block. Close before `{%- endfor -%}` (line 203).
+
+---
+
+### File 3: `snippets/product-card.liquid`
+
+Already registered as `merge=ours` in `.gitattributes` (line 66). ✓
+
+Replace the line `assign variant_to_link = product.selected_or_first_available_variant`
+with the pre-selection block (see `apps/variant-filter-app/theme-integration/product-card-patch.liquid`).
+
+This makes the product card link (`<a href="{{ variant_to_link.url }}">`) and the
+view-transition `featured_media_url` honour the rule's preferred variant. Price and
+swatch checked state on the rendered card still resolve through Shopify's default
+`product.selected_or_first_available_variant` — matched up post-click via the existing
+`swatches-variant-picker-component` fetch flow.
+
+Also requires `apps/variant-filter-app/extensions/variant-filter-tae/snippets/preselect.liquid`.
 
 ---
 

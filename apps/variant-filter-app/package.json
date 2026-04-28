@@ -9,7 +9,9 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
-    "deploy": "shopify app deploy",
+    "deploy:worker": "npm run build && npx wrangler deploy",
+    "deploy:extension": "shopify app deploy",
+    "deploy": "npm run deploy:worker && npm run deploy:extension",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

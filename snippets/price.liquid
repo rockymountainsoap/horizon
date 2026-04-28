@@ -5,12 +5,40 @@
   @param {product} product_resource - The product to render
   @param {boolean} [show_unit_price] - Whether to show the unit price
   @param {boolean} [show_sale_price_first] - Whether to show the sale price first
+  @param {boolean} [vf_skip_rule] - Skip the variant-filter rule preselect.
+    Pass `true` from the AJAX `section-rendering-product-card` path so a user
+    pill click resolves to the user's choice (driven by `?option_values=`),
+    not the rule's preselect. Defaults to false.
 {%- enddoc -%}
 
 {%- liquid
   assign show_unit_price = show_unit_price | default: false
   assign show_sale_price_first = show_sale_price_first | default: false
+
+  # variant-filter app — when an active collection rule pre-selects a variant
+  # for this product, render its price (incl. compare-at) instead of the
+  # default's. This rebuilds the markup correctly when only one of the two
+  # variants is on sale (a plain text replace can't add/remove the
+  # compare-at-price element). Falls open to selected_or_first_available
+  # whenever the snippet is on a non-collection page (`collection` is nil),
+  # the rule misses, or the caller opts out via `vf_skip_rule`.
   assign selected_variant = product_resource.selected_or_first_available_variant
+  unless vf_skip_rule
+    capture vf_preselect_id_str
+      render 'variant-filter--preselect', product: product_resource
+    endcapture
+    assign vf_preselect_id_str = vf_preselect_id_str | strip
+    if vf_preselect_id_str != blank
+      assign vf_preselect_id_int = vf_preselect_id_str | plus: 0
+      for vf_candidate in product_resource.variants
+        if vf_candidate.id == vf_preselect_id_int
+          assign selected_variant = vf_candidate
+          break
+        endif
+      endfor
+    endif
+  endunless
+
   assign price = selected_variant.price
   assign compare_at_price = selected_variant.compare_at_price
 

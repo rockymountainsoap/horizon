@@ -1,0 +1,126 @@
+{%- comment -%}
+  TAE snippet: variant-filter--preselect
+  Deployed name: variant-filter--preselect.liquid
+
+  Emits the variant ID of the first variant on `product` whose value for the
+  rule's targeted option passes the active collection rule. Outputs nothing if
+  there is no rule, no collection context, no matching variant, or the rule is
+  malformed (fail-open).
+
+  Parameters (must be passed — render scope is isolated):
+    product — the product to evaluate
+
+  Accesses:
+    collection — Shopify global, available without passing
+
+  Graceful degradation: any unexpected nil/blank input outputs "" (no preselect).
+  If this snippet file is absent (app not installed), {% capture %} returns ""
+  and the caller falls back to product.selected_or_first_available_variant.
+{%- endcomment -%}
+
+{%- liquid
+  if collection == blank or product == blank
+    # No collection context (PDP, search, etc.) — nothing to preselect.
+
+  else
+    assign vf_rule = collection.metafields['variant-filter']['rule'].value
+
+    if vf_rule == blank or vf_rule.option == blank
+      # No rule or rule targets nothing — fall back.
+
+    else
+      # Locate the position (1-based) of the rule's option on this product.
+      assign vf_target_position = 0
+      for opt in product.options_with_values
+        if opt.name == vf_rule.option
+          assign vf_target_position = forloop.index
+          break
+        endif
+      endfor
+
+      if vf_target_position == 0
+        # Product doesn't have the targeted option — fall back.
+
+      else
+        assign vf_first_match = blank
+        assign vf_found = false
+        for variant in product.variants
+          assign vf_value = blank
+          case vf_target_position
+            when 1
+              assign vf_value = variant.option1
+            when 2
+              assign vf_value = variant.option2
+            when 3
+              assign vf_value = variant.option3
+          endcase
+
+          if vf_value == blank
+            continue
+          endif
+
+          assign vf_pass = false
+
+          if vf_rule.filterType == 'exact'
+            if vf_rule.values == blank
+              # Missing values — fail open: any variant passes, take the first.
+              assign vf_pass = true
+            else
+              for vf_allowed in vf_rule.values
+                if vf_value == vf_allowed
+                  assign vf_pass = true
+                  break
+                endif
+              endfor
+            endif
+
+          elsif vf_rule.filterType == 'contains'
+            if vf_rule.values == blank
+              assign vf_pass = true
+            else
+              for vf_allowed in vf_rule.values
+                if vf_value contains vf_allowed
+                  assign vf_pass = true
+                  break
+                endif
+              endfor
+            endif
+
+          elsif vf_rule.filterType == 'size_range'
+            if vf_rule.maxMl == blank or vf_rule.maxMl == 0
+              assign vf_pass = true
+            else
+              assign vf_numeric = vf_value | plus: 0
+              # Mirrors filter.liquid: non-numeric strings (plus:0 == 0) pass.
+              if vf_numeric <= vf_rule.maxMl
+                assign vf_pass = true
+              endif
+            endif
+
+          else
+            # Unknown filterType — fail open.
+            assign vf_pass = true
+          endif
+
+          if vf_pass
+            # Prefer the first available match; otherwise the first match wins.
+            if variant.available
+              echo variant.id
+              assign vf_found = true
+              break
+            elsif vf_first_match == blank
+              assign vf_first_match = variant.id
+            endif
+          endif
+        endfor
+
+        # No available match — fall back to first matching variant.
+        unless vf_found
+          if vf_first_match != blank
+            echo vf_first_match
+          endif
+        endunless
+      endif
+    endif
+  endif
+-%}

@@ -31,11 +31,37 @@
     assign has_mobile_quick_add = true
   endif
 
+  # Per-card override: when the card has its own buy-buttons block, merchants
+  # can hide the global quick-add overlay to avoid duplicate purchase affordances.
+  if block_settings.hide_quick_add
+    assign has_quick_add = false
+    assign has_mobile_quick_add = false
+  endif
+
   assign product_card_id = 'product-card-link-' | append: block.id | append: '-' | append: product.id
   assign product_card_gap_value = product_card_gap | default: block_settings.product_card_gap
 
-  # Logic to determine which variant URL to use (matching swatch selection logic)
+  # variant-filter app — when an active collection rule pre-selects a variant
+  # for this product, point the card link at that variant so click-through
+  # opens the PDP at the right variant. Price (incl. compare-at), variant
+  # pills, and the gallery image are all rule-aware in their own snippets
+  # (`price.liquid`, `variant-buttons.liquid`, `card-gallery.liquid`); this
+  # block only owns the overlay link href. Empty / missing snippet / no rule
+  # → fail-open to selected_or_first_available_variant.
+  capture vf_preselect_id
+    render 'variant-filter--preselect', product: product
+  endcapture
+  assign vf_preselect_id = vf_preselect_id | strip
   assign variant_to_link = product.selected_or_first_available_variant
+  if vf_preselect_id != blank
+    assign vf_preselect_id_int = vf_preselect_id | plus: 0
+    for vf_candidate in product.variants
+      if vf_candidate.id == vf_preselect_id_int
+        assign variant_to_link = vf_candidate
+        break
+      endif
+    endfor
+  endif
 
   if settings.transition_to_main_product
     assign featured_image = variant_to_link.featured_image

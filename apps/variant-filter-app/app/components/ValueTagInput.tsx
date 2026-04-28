@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useCallback, useState } from "react";
 import { BlockStack, InlineStack, Tag, TextField } from "@shopify/polaris";
 
 interface Props {
@@ -15,7 +15,6 @@ export function ValueTagInput({
   error,
 }: Props) {
   const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const addValue = useCallback(
     (raw: string) => {
@@ -28,32 +27,39 @@ export function ValueTagInput({
     [values, onChange]
   );
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function removeValue(v: string) {
+    onChange(values.filter((x) => x !== v));
+  }
+
+  // Polaris 13 `TextField` doesn't expose `onKeyDown`, so we attach the
+  // keydown listener to a wrapping div. The event bubbles from the
+  // underlying `<input>` so this catches Enter, comma, and Backspace.
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addValue(input);
+      return;
     }
     if (e.key === "Backspace" && input === "" && values.length > 0) {
       onChange(values.slice(0, -1));
     }
   }
 
-  function removeValue(v: string) {
-    onChange(values.filter((x) => x !== v));
-  }
-
   return (
     <BlockStack gap="200">
-      <TextField
-        label={label}
-        value={input}
-        onChange={setInput}
-        onKeyDown={handleKeyDown}
-        onBlur={() => input.trim() && addValue(input)}
-        helpText="Press Enter or comma to add a value."
-        autoComplete="off"
-        error={values.length === 0 ? error : undefined}
-      />
+      <div onKeyDown={handleKeyDown}>
+        <TextField
+          label={label}
+          value={input}
+          onChange={setInput}
+          onBlur={() => {
+            if (input.trim()) addValue(input);
+          }}
+          helpText="Press Enter or comma to add a value."
+          autoComplete="off"
+          error={values.length === 0 ? error : undefined}
+        />
+      </div>
       {values.length > 0 && (
         <InlineStack gap="100" wrap>
           {values.map((v) => (

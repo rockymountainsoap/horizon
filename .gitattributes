@@ -20,6 +20,7 @@ sections/footer-utilities.liquid merge=ours
 
 # --- Sections: WS 2 Engine A (Homepage, PLP, PDP) ---
 sections/hero.liquid merge=ours
+sections/section-rendering-product-card.liquid merge=ours
 sections/main-collection.liquid merge=ours
 sections/product-list.liquid merge=ours
 sections/product-information.liquid merge=ours
@@ -64,11 +65,18 @@ snippets/mega-menu-list.liquid merge=ours
 snippets/cart-summary.liquid merge=ours
 snippets/cart-products.liquid merge=ours
 snippets/product-card.liquid merge=ours
+snippets/card-gallery.liquid merge=ours
+snippets/price.liquid merge=ours
 snippets/quick-add.liquid merge=ours
 snippets/quick-add-modal.liquid merge=ours
 snippets/variant-swatches.liquid merge=ours
 snippets/variant-main-picker.liquid merge=ours
+snippets/variant-filter--preselect.liquid merge=ours
+snippets/variant-filter--precheck.liquid merge=ours
+snippets/variant-filter--filter.liquid merge=ours
 blocks/_product-card.liquid merge=ours
+blocks/product-card.liquid merge=ours
+blocks/product-title.liquid merge=ours
 snippets/add-to-cart-button.liquid merge=ours
 snippets/product-information-content.liquid merge=ours
 
@@ -77,3 +85,12 @@ snippets/product-information-content.liquid merge=ours
 # Listed here for documentation — merge=ours is not strictly needed
 # but makes intent explicit if filenames ever collide in future Horizon versions.
 assets/r-base.css merge=ours
+assets/variant-buttons.js merge=ours
+blocks/variant-buttons.liquid merge=ours
+snippets/variant-buttons.liquid merge=ours
+
+# --- Upstream JS we extend for the variant-buttons custom element ---
+# Touch points: extra tag in `variantPicker` getter + price-container fallback
+# in `updatePrice`. Keep ours during upstream merges; manually reapply changes
+# if upstream rewrites them.
+assets/product-card.js merge=ours

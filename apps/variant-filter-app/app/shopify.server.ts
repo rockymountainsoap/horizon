@@ -4,10 +4,6 @@ import { registerMetafieldDefinition } from "~/graphql/metafields.server";
 import type { AppLoadContext } from "@remix-run/cloudflare";
 import type { Env } from "../server";
 
-type AdminClient = {
-  graphql: (query: string, options?: { variables?: unknown }) => Promise<Response>;
-};
-
 let shopify: ReturnType<typeof shopifyApp> | null = null;
 // Kept separate so we can refresh the KV namespace binding on every request.
 // Cloudflare Workers bindings are scoped to a single invocation and must not be
@@ -22,20 +18,20 @@ function createShopify(env: Env) {
     appUrl: env.SHOPIFY_APP_URL,
     scopes: ["read_products", "write_products"],
     apiVersion: "2025-04" as any,
-    sessionStorage: kvStorage,
+    // Cast: `@shopify/shopify-app-remix` and the KV session-storage package
+    // resolve `@shopify/shopify-api` from different paths, which TS treats as
+    // structurally incompatible. The runtime shape is identical.
+    sessionStorage: kvStorage as any,
     hooks: {
-      afterAuth: async ({
-        session,
-        admin,
-      }: {
-        session: any;
-        admin: AdminClient;
-      }) => {
+      afterAuth: async ({ session, admin }) => {
         shopify!.registerWebhooks({ session }).catch((err: unknown) => {
           console.error("[variant-filter] registerWebhooks failed:", err);
         });
         try {
-          await registerMetafieldDefinition(admin);
+          // The real admin client has a richer signature than what the helper
+          // expects; cast to the minimal shape `registerMetafieldDefinition`
+          // uses (it only calls `graphql(query, { variables })`).
+          await registerMetafieldDefinition(admin as never);
         } catch (err) {
           console.error("[variant-filter] registerMetafieldDefinition failed:", err);
         }

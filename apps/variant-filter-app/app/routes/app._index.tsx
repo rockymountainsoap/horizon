@@ -1,29 +1,66 @@
+import { useState } from "react";
 import { json } from "@remix-run/cloudflare";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import {
-  useLoaderData,
-  useSubmit,
-  useNavigation,
   Link,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  useSubmit,
 } from "@remix-run/react";
 import {
-  Badge,
+  Banner,
   BlockStack,
   Button,
   Card,
   EmptyState,
   IndexTable,
   InlineStack,
+  Modal,
   Page,
   Pagination,
   Text,
-  Thumbnail,
 } from "@shopify/polaris";
 import { RuleBadge } from "~/components/RuleBadge";
 import { LIST_COLLECTIONS } from "~/graphql/collections.server";
-import { DELETE_RULE } from "~/graphql/metafields.server";
+import {
+  DELETE_RULE,
+  METAFIELD_KEY,
+  METAFIELD_NAMESPACE,
+} from "~/graphql/metafields.server";
 import { parseRule } from "~/models/rule.server";
 import { authenticate } from "~/shopify.server";
+
+interface CollectionRow {
+  id: string;
+  numericId: string;
+  title: string;
+  metafieldId: string | null;
+  rule: ReturnType<typeof parseRule>;
+}
+
+interface PageInfo {
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  startCursor: string;
+  endCursor: string;
+}
+
+interface ListCollectionsResponse {
+  data?: {
+    collections: {
+      pageInfo: PageInfo;
+      edges: Array<{
+        node: {
+          id: string;
+          title: string;
+          handle: string;
+          metafield: { id: string; value: string } | null;
+        };
+      }>;
+    };
+  };
+}
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const { admin } = await authenticate(request, context);
@@ -35,54 +72,115 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const response = await admin.graphql(LIST_COLLECTIONS, {
     variables: { first: 50, after, before },
   });
-  const { data } = (await response.json()) as any;
+  const { data } = (await response.json()) as ListCollectionsResponse;
 
-  return json({
-    collections: data.collections.edges.map(({ node }: any) => ({
-      id: node.id as string,
-      numericId: (node.id as string).split("/").at(-1)!,
-      title: node.title as string,
-      handle: node.handle as string,
-      imageUrl: (node.image?.url as string) ?? null,
-      imageAlt: (node.image?.altText as string) ?? (node.title as string),
-      metafieldId: (node.metafield?.id as string) ?? null,
+  if (!data) {
+    throw new Response("Failed to load collections", { status: 502 });
+  }
+
+  const collections: CollectionRow[] = data.collections.edges.map(
+    ({ node }) => ({
+      id: node.id,
+      numericId: node.id.split("/").at(-1) ?? node.id,
+      title: node.title,
+      metafieldId: node.metafield?.id ?? null,
       rule: parseRule(node.metafield?.value),
-    })),
-    pageInfo: data.collections.pageInfo as {
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      startCursor: string;
-      endCursor: string;
-    },
-  });
+    })
+  );
+
+  return json({ collections, pageInfo: data.collections.pageInfo });
 }
 
-export async function action({ request, context }: ActionFunctionArgs) {
+interface DeleteResponse {
+  data?: {
+    metafieldsDelete: {
+      deletedMetafields: Array<{ ownerId: string }> | null;
+      userErrors: Array<{ field: string[] | null; message: string }>;
+    };
+  };
+}
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+export async function action({
+  request,
+  context,
+}: ActionFunctionArgs): Promise<Response> {
   const { admin } = await authenticate(request, context);
   const form = await request.formData();
-  const metafieldId = String(form.get("metafieldId"));
+  const ownerId = String(form.get("ownerId") ?? "");
 
-  await admin.graphql(DELETE_RULE, { variables: { metafieldId } });
-  return json({ cleared: true });
+  if (!ownerId.startsWith("gid://shopify/Collection/")) {
+    return json<ActionResult>(
+      { ok: false, error: "Missing or invalid collection identifier." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const res = await admin.graphql(DELETE_RULE, {
+      variables: {
+        metafields: [
+          { ownerId, namespace: METAFIELD_NAMESPACE, key: METAFIELD_KEY },
+        ],
+      },
+    });
+    const { data } = (await res.json()) as DeleteResponse;
+    const userErrors = data?.metafieldsDelete?.userErrors ?? [];
+
+    if (userErrors.length > 0) {
+      return json<ActionResult>(
+        { ok: false, error: userErrors[0].message },
+        { status: 400 }
+      );
+    }
+
+    return json<ActionResult>({ ok: true });
+  } catch (err) {
+    console.error("[variant-filter] DELETE_RULE failed:", err);
+    return json<ActionResult>(
+      { ok: false, error: "Could not reach Shopify to clear the rule." },
+      { status: 502 }
+    );
+  }
 }
 
 export default function CollectionsIndex() {
   const { collections, pageInfo } = useLoaderData<typeof loader>();
+  const actionData = useActionData() as ActionResult | undefined;
   const submit = useSubmit();
   const navigation = useNavigation();
-  const isLoading = navigation.state === "loading";
+  const isClearing = navigation.formMethod === "POST";
 
-  function handleClear(metafieldId: string) {
-    if (confirm("Clear this rule? All variants will be shown again.")) {
-      submit({ metafieldId }, { method: "POST" });
-    }
+  const [pendingClear, setPendingClear] = useState<CollectionRow | null>(null);
+
+  function confirmClear() {
+    if (!pendingClear) return;
+    submit({ ownerId: pendingClear.id }, { method: "POST" });
+    setPendingClear(null);
   }
 
   const resourceName = { singular: "collection", plural: "collections" };
+  const errorBanner =
+    actionData && !actionData.ok ? actionData.error : undefined;
+  const successBanner =
+    actionData?.ok === true && navigation.state === "idle";
 
   return (
     <Page title="Variant Filter Rules">
       <BlockStack gap="400">
+        {successBanner && (
+          <Banner tone="success" onDismiss={() => undefined}>
+            Rule cleared. All variants will be shown again on that collection.
+          </Banner>
+        )}
+
+        {errorBanner && (
+          <Banner tone="critical" title="Could not clear rule">
+            <p>{errorBanner}</p>
+          </Banner>
+        )}
+
         <Card padding="0">
           {collections.length === 0 ? (
             <EmptyState
@@ -96,9 +194,8 @@ export default function CollectionsIndex() {
               resourceName={resourceName}
               itemCount={collections.length}
               selectable={false}
-              loading={isLoading}
+              loading={isClearing}
               headings={[
-                { title: "" },
                 { title: "Collection" },
                 { title: "Active rule" },
                 { title: "" },
@@ -106,14 +203,6 @@ export default function CollectionsIndex() {
             >
               {collections.map((col, index) => (
                 <IndexTable.Row key={col.id} id={col.id} position={index}>
-                  <IndexTable.Cell>
-                    <Thumbnail
-                      source={col.imageUrl ?? ""}
-                      alt={col.imageAlt}
-                      size="small"
-                    />
-                  </IndexTable.Cell>
-
                   <IndexTable.Cell>
                     <Link to={`/app/collections/${col.numericId}`}>
                       <Text as="span" fontWeight="medium">
@@ -138,7 +227,7 @@ export default function CollectionsIndex() {
                         <Button
                           variant="plain"
                           tone="critical"
-                          onClick={() => handleClear(col.metafieldId!)}
+                          onClick={() => setPendingClear(col)}
                         >
                           Clear
                         </Button>
@@ -162,6 +251,34 @@ export default function CollectionsIndex() {
           </InlineStack>
         )}
       </BlockStack>
+
+      <Modal
+        open={pendingClear !== null}
+        onClose={() => setPendingClear(null)}
+        title="Clear variant filter rule?"
+        primaryAction={{
+          content: "Clear rule",
+          destructive: true,
+          onAction: confirmClear,
+          loading: isClearing,
+        }}
+        secondaryActions={[
+          {
+            content: "Cancel",
+            onAction: () => setPendingClear(null),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <Text as="p">
+            Shoppers visiting{" "}
+            <Text as="span" fontWeight="semibold">
+              {pendingClear?.title}
+            </Text>{" "}
+            will see all variants again. You can set a new rule at any time.
+          </Text>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

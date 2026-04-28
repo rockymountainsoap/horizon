@@ -17,24 +17,24 @@ Use `--global` to set for all repos, or omit to set for this repo only.
 
 ## Paths Included (and why)
 
-Mapped to the Phase 1 workback plan so only files we intentionally customize are protected.
-
 | Area | Paths | Workstream / rationale |
 |------|--------|-------------------------|
 | **Config** | `config/settings_data.json`, `config/settings_schema.json` | Store-specific theme settings and schema extensions; should not be replaced by upstream. |
 | **Layout** | `layout/theme.liquid` | Core shell: fonts, colours, scripts, structure (WS 0). |
 | **Header / Nav** | `sections/header*.liquid`, `footer*.liquid`, `search-header`, `predictive-search*` | Global nav, mega menus, mobile drawer, footer (WS 1). |
-| **Engine A** | `hero`, `main-collection`, `product-list`, `product-information`, `featured-product*`, `carousel`, `main-cart` | Homepage, PLP, PDP, mini-cart (WS 2–3). |
+| **Engine A** | `hero`, `main-collection`, `product-list`, `product-information`, `featured-product*`, `carousel`, `main-cart`, `section-rendering-product-card` | Homepage, PLP, PDP, mini-cart (WS 2–3). `section-rendering-product-card` is patched to render `variant-buttons` with `vf_skip_rule: true` so AJAX pill clicks honour the user's selection instead of being overridden by the collection rule. |
 | **Journal / Content** | `main-blog*`, `featured-blog-posts`, `main-page`, `main-404`, `search-results` | Journal index, article template, pages, 404, search (WS 4). |
-| **Templates** | `templates/*.json` (index, 404, product, collection, cart, blog, article, search, page, page.contact) | Section order and settings per page type; editor/customizations live here. |
-| **Locale** | `locales/en.default.json`, `locales/en.default.schema.json` | Primary language copy and schema labels. |
-| **Snippets** | `stylesheets.liquid`, `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `variant-swatches`, `variant-main-picker`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens, stylesheet loader (`r-base.css` is registered here), and high-touch UI reused across sections. `variant-swatches` and `variant-main-picker` patched for variant-filter app (TAE render hooks). |
-| **Blocks** | `blocks/_product-card.liquid` | Schema extended to allow `r-variant-pills-atc` child block type (variant filter + ATC). |
-| **Rocky assets** | `assets/r-base.css` | Rocky-owned; no upstream equivalent. Listed for explicit intent. |
+| **Templates** | `templates/*.json` (index, 404, product, collection, cart, blog, article, search, page, page.contact) | Section order and settings per page type; editor customizations live here. `collection.json` and `search.json` include the `variant-buttons` and `buy-buttons` blocks, and set `hide_quick_add: true`. |
+| **Locale** | `locales/en.default.json`, `locales/en.default.schema.json` | Primary language copy and schema labels. `en.default.schema.json` includes keys for `variant_buttons`, `hide_quick_add`, and pill style settings. |
+| **Snippets** | `stylesheets.liquid`, `theme-styles-variables`, `fonts`, `color-schemes`, header/cart/product-card snippets, `card-gallery`, `price`, `variant-swatches`, `variant-main-picker`, `quick-add*`, `add-to-cart-button`, `product-information-content` | Design tokens, stylesheet loader, and high-touch UI reused across sections.<br><br>**Variant-filter specific changes:**<br>• `card-gallery` lifts the rule variant's `featured_media` to DOM slide 0 so the correct product image is painted on first load with no client-side flash; gallery link href is also set to the rule variant URL.<br>• `price` calls `variant-filter--preselect` to render the correct price + compare-at markup (full structural rebuild, not text replace) for the rule variant. The AJAX path passes `vf_skip_rule: true` to honour the user's pill click instead.<br>• `product-card` resolves `variant_to_link` (overlay link href) to the rule variant's URL. |
+| **Variant-filter TAE copies** | `snippets/variant-filter--preselect.liquid`, `snippets/variant-filter--precheck.liquid`, `snippets/variant-filter--filter.liquid` | Manual copies of the Theme App Extension snippets. Liquid's `render` tag cannot reach TAE snippets from regular theme templates; these copies make them available. Must be kept in sync with `apps/variant-filter-app/extensions/variant-filter-tae/snippets/`. |
+| **Blocks** | `blocks/_product-card.liquid`, `blocks/product-card.liquid`, `blocks/product-title.liquid` | `_product-card`: schema extended to allow `variant-buttons` + `buy-buttons` child blocks; `hide_quick_add` setting added. `product-card`: default preset rebuilt to `gallery → variant pills → title → price → buy-buttons`. `product-title`: resolves the rule variant URL for the title anchor so clicking the title opens the right variant's PDP. |
+| **Rocky assets** | `assets/r-base.css`, `assets/variant-buttons.js`, `blocks/variant-buttons.liquid`, `snippets/variant-buttons.liquid` | Rocky-owned; no upstream equivalent. `variant-buttons.liquid` renders text-pill variant pickers in product cards with rule pre-selection support and a `vf_skip_rule` opt-out for the AJAX path. `variant-buttons.js` defines `<variant-buttons-component>` and overrides `buildRequestUrl` to force `section_id=section-rendering-product-card`. |
+| **Upstream JS we extend** | `assets/product-card.js` | Two surgical changes: the `variantPicker` getter also matches `<variant-buttons-component>`, and `updatePrice` falls back to the first `priceContainer` when index `[1]` is absent. If upstream rewrites these methods, reapply manually. |
 
 ## Adding or Removing Paths
 
-- **Add:** If we customize a new file and want to keep our version on upstream merges, add a line:  
+- **Add:** If we customize a new file and want to keep our version on upstream merges, add a line:
   `path/to/file merge=ours`
 - **Remove:** If we decide to track upstream for a file again, delete (or comment out) its line in `.gitattributes`.
 - **New sections/snippets:** When a new workstream adds sections or snippets we fully own, add them to `.gitattributes` and to this table.
@@ -44,8 +44,22 @@ Mapped to the Phase 1 workback plan so only files we intentionally customize are
 - **Merge direction:** `ours` is the branch you're on when you run `git merge`. So when we merge `upstream/main` **into** our branch, "ours" = our branch and those paths keep our version. If someone merges our branch into upstream, "ours" would be upstream; avoid that flow for these files.
 - **Rebase:** `merge=ours` applies to **merges** only. Rebasing rewrites history and does not use this strategy; prefer merging upstream into our branch.
 - **First-time setup:** Run `git config merge.ours.driver true` once (see "How It Works" above). Without this, `merge=ours` has no effect.
+- **TAE snippet copies:** `snippets/variant-filter--*.liquid` are copies, not symlinks. If TAE logic changes, update both the source (`extensions/variant-filter-tae/snippets/`) and the copies (`snippets/variant-filter--*.liquid`).
+
+## Upstream Merge Checklist
+
+After `git pull upstream main`, verify:
+
+- [ ] `merge=ours` files are intact (run `git diff HEAD~1 -- snippets/product-card.liquid snippets/card-gallery.liquid snippets/price.liquid`).
+- [ ] Review upstream changes to patched files for useful bug fixes to cherry-pick.
+- [ ] `variant-swatches.liquid` option loop structure unchanged (used by `variant-filter--filter`).
+- [ ] `variant-main-picker.liquid` buttons and dropdown loop structure unchanged.
+- [ ] `assets/product-card.js` `variantPicker` getter and `updatePrice` unchanged; reapply our extensions if not.
+- [ ] `sections/section-rendering-product-card.liquid` — did upstream add new render calls that should also be rule-aware?
+- [ ] Smoke-test a collection with an active filter rule on a dev theme.
 
 ## Reference
 
-- Workback plan: Phase 1 workstreams 0–6 (Core, Global Nav, Engine A, Cart & Account, Journal, Data/QA).
-- Git: [gitattributes – merge strategies](https://git-scm.com/docs/gitattributes#_defining_a_custom_merge_driver) (merge driver and `merge=ours` behaviour).
+- Variant filter app docs: `apps/variant-filter-app/theme-integration/INTEGRATION_GUIDE.md`
+- Apps overview: `apps/README.md`
+- Git: [gitattributes — merge strategies](https://git-scm.com/docs/gitattributes#_defining_a_custom_merge_driver)

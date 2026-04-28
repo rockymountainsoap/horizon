@@ -12,10 +12,6 @@ export const LIST_COLLECTIONS = `#graphql
           id
           title
           handle
-          image {
-            url(transform: { maxWidth: 48, maxHeight: 48 })
-            altText
-          }
           metafield(namespace: "variant-filter", key: "rule") {
             id
             value
