@@ -2,7 +2,7 @@
 
 ---
 
-## Rocky Mountain Soap — WS1 Variant Filter (April 2026)
+## v3.5.0-rocky — WS0 Wishlist + WS1 Variant Filter (April 2026)
 
 This Rocky-fork release introduces the **Variant Filter** system: a custom Shopify embedded app that lets merchants define per-collection variant filter rules, with fully server-side product card pre-selection — zero client-side flash.
 
@@ -75,7 +75,7 @@ This Rocky-fork release introduces the **Variant Filter** system: a custom Shopi
 
 ---
 
-## Version 3.4.0 (upstream Horizon)
+## v3.4.0 (upstream Horizon)
 
 This release adds a text option for header links as an alternative for the current icons as well as updates to customer accounts. It also includes UX and accessibility improvements, and bugfixes.
 
