@@ -1,0 +1,31 @@
+{%- comment -%}
+  Reference: exact patch applied to snippets/product-card.liquid
+  Lines marked NEW are the insertions; the line marked REPLACED is the original
+  upstream line being substituted. See INTEGRATION_GUIDE.md (Step 4) for context.
+{%- endcomment -%}
+
+{{- '--- Variant pre-selection (replaces the single original `assign variant_to_link = ...` line) ---' -}}
+
+  {%- # variant-filter app — pre-select the first rule-allowed variant -%}                       {%- # NEW -%}
+  {%- capture vf_preselect_id -%}                                                                {%- # NEW -%}
+    {%- render 'variant-filter--preselect', product: product -%}                                 {%- # NEW -%}
+  {%- endcapture -%}                                                                             {%- # NEW -%}
+  {%- assign vf_preselect_id = vf_preselect_id | strip -%}                                       {%- # NEW -%}
+  {%- assign variant_to_link = product.selected_or_first_available_variant -%}                   {%- # REPLACED (kept as fallback) -%}
+  {%- if vf_preselect_id != blank -%}                                                            {%- # NEW -%}
+    {%- assign vf_preselect_id_int = vf_preselect_id | plus: 0 -%}                               {%- # NEW -%}
+    {%- for vf_candidate in product.variants -%}                                                 {%- # NEW -%}
+      {%- if vf_candidate.id == vf_preselect_id_int -%}                                          {%- # NEW -%}
+        {%- assign variant_to_link = vf_candidate -%}                                            {%- # NEW -%}
+        {%- break -%}                                                                            {%- # NEW -%}
+      {%- endif -%}                                                                              {%- # NEW -%}
+    {%- endfor -%}                                                                               {%- # NEW -%}
+  {%- endif -%}                                                                                  {%- # NEW -%}
+
+{{- '--- Quick-add override (replaces nothing — additive, just below the existing has_quick_add assigns) ---' -}}
+
+  {%- # Per-card override so the new variant-pills + buy-buttons layout doesn't double up -%}    {%- # NEW -%}
+  {%- if block_settings.hide_quick_add -%}                                                       {%- # NEW -%}
+    {%- assign has_quick_add = false -%}                                                         {%- # NEW -%}
+    {%- assign has_mobile_quick_add = false -%}                                                  {%- # NEW -%}
+  {%- endif -%}                                                                                  {%- # NEW -%}

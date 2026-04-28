@@ -91,8 +91,34 @@
       # Sort media so product.featured_media.preview_image comes first as that is the most relevant image to display
       # product.featured_media updates based on search context and filters applied
 
-      assign other_media = product.media | reject: 'src', product.featured_media
-      assign media_list_to_show = product.featured_media | concat: other_media
+      # variant-filter app — when an active collection rule pre-selects a
+      # variant for this product, lift that variant's featured media to slide
+      # 0 (so the rule variant's image is what's painted on first load) and
+      # use that variant's URL for the gallery link (so a click on the image
+      # opens the PDP at the right variant). Falls open to the default when
+      # there is no rule, no collection context (PDP/search), or the rule
+      # resolves to a variant with no media of its own.
+      assign vf_priority_media = product.featured_media
+      assign vf_target_variant = product.selected_or_first_available_variant
+      capture vf_preselect_id_str
+        render 'variant-filter--preselect', product: product
+      endcapture
+      assign vf_preselect_id_str = vf_preselect_id_str | strip
+      if vf_preselect_id_str != blank
+        assign vf_preselect_id_int = vf_preselect_id_str | plus: 0
+        for vf_candidate in product.variants
+          if vf_candidate.id == vf_preselect_id_int
+            assign vf_target_variant = vf_candidate
+            if vf_candidate.featured_media != blank
+              assign vf_priority_media = vf_candidate.featured_media
+            endif
+            break
+          endif
+        endfor
+      endif
+
+      assign other_media = product.media | reject: 'src', vf_priority_media
+      assign media_list_to_show = vf_priority_media | concat: other_media
 
       if product.media.size > 2 and generic_media_size > 0
         assign show_arrows = true
@@ -160,7 +186,7 @@
     <a
       class="contents"
       ref="cardGalleryLink"
-      href="{{ product.selected_or_first_available_variant.url }}"
+      href="{{ vf_target_variant.url }}"
       aria-label="{{- product.title -}}"
     >
       {% render 'slideshow',

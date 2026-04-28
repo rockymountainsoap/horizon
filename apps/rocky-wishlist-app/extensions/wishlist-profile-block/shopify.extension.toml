@@ -1,0 +1,30 @@
+api_version = "2025-10"
+
+[[extensions]]
+name = "Wishlist Profile Block"
+handle = "wishlist-profile-block"
+uid = "a1eb23c4-ce29-1e17-8061-132bf7a545b9d9bca54d"
+type = "ui_extension"
+
+[[extensions.targeting]]
+module = "./src/ProfileBlockExtension.jsx"
+target = "customer-account.profile.block.render"
+
+[extensions.capabilities]
+api_access = true
+network_access = true
+
+[extensions.settings]
+
+[[extensions.settings.fields]]
+key = "wishlist_path"
+type = "single_line_text_field"
+name = "Wishlist page path"
+description = "Path to your full-page wishlist (from Customer Account editor preview URL), e.g. the path after your store domain."
+
+[[extensions.settings.fields]]
+key = "max_preview"
+type = "number_integer"
+name = "Max preview cards"
+description = "Maximum number of cards to show in the profile carousel. Default 8. When exceeded, the final tile becomes View all."
+default = 8

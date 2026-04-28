@@ -1,0 +1,262 @@
+{%- doc -%}
+  Renders a text-pill variant picker for product cards. Unlike `variant-swatches`,
+  this renders ALL values of the first non-color option as text buttons (e.g. sizes
+  like "15ml / 30ml / 60ml"). Wrapped in `swatches-variant-picker-component` so the
+  existing product-card JS handles click → fetch → price/image/url updates.
+
+  @param {object} product_resource - The product object, which contains variants and options.
+  @param {boolean} [vf_skip_rule] - Skip the variant-filter rule preselect.
+    Pass `true` from the AJAX `section-rendering-product-card` path so the
+    user's pill click (driven by `?option_values=`) becomes the checked
+    state, instead of the rule's preselect. Defaults to false.
+
+  @example
+  {% render 'variant-buttons', product_resource: product %}
+{%- enddoc -%}
+
+{% stylesheet %}
+  product-variant-buttons {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    gap: var(--gap-xs);
+  }
+
+  product-variant-buttons variant-buttons-component {
+    display: flex;
+    width: 100%;
+    flex-direction: row;
+    justify-content: var(--variant-buttons-alignment-mobile, flex-start);
+
+    @media screen and (min-width: 750px) {
+      justify-content: var(--variant-buttons-alignment, flex-start);
+    }
+  }
+
+  .variant-buttons__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--variant-buttons-gap, 8px);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .variant-buttons__item {
+    position: relative;
+  }
+
+  .variant-buttons__label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: var(--variant-buttons-padding-block, 6px) var(--variant-buttons-padding-inline, 12px);
+    border: var(--variant-buttons-border-width, 1px) solid
+      rgb(var(--color-foreground-rgb) / var(--opacity-20-30, 0.2));
+    border-radius: var(--variant-buttons-border-radius, 4px);
+    font-size: var(--variant-buttons-font-size, 0.8125rem);
+    line-height: 1;
+    background: transparent;
+    color: rgb(var(--color-foreground-rgb));
+    transition: border-color 0.15s ease;
+    user-select: none;
+  }
+
+  .variant-buttons__label:hover {
+    border-color: rgb(var(--color-foreground-rgb));
+  }
+
+  .variant-buttons__input {
+    position: absolute;
+    opacity: 0;
+    inset: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  .variant-buttons__input:checked + .variant-buttons__label {
+    border-color: rgb(var(--color-foreground-rgb));
+    border-width: var(--variant-buttons-border-width-selected, 1.5px);
+  }
+
+  .variant-buttons__input:focus-visible + .variant-buttons__label {
+    outline: var(--focus-outline-width) solid rgb(var(--color-foreground-rgb));
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  .variant-buttons__input[data-option-available='false'] + .variant-buttons__label {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-40-60, 0.4));
+    border-style: dashed;
+  }
+{% endstylesheet %}
+
+{%- liquid
+  # Find the first option that should be rendered as text buttons.
+  # Skip options where every value is a colour/image swatch — those are handled by
+  # the `swatches` block. We want the option that drives the size/format choice.
+  assign target_option = nil
+  for product_option in product_resource.options_with_values
+    assign value_count = product_option.values.size
+    assign swatch_count = product_option.values | map: 'swatch' | compact | size
+    if value_count > 0 and swatch_count < value_count
+      assign target_option = product_option
+      break
+    endif
+  endfor
+
+  assign allow_preselection = false
+  if product_resource.selected_variant or product_resource.selected_or_first_available_variant
+    assign allow_preselection = true
+  endif
+-%}
+
+{%- if target_option -%}
+  {%- liquid
+    # variant-filter app — resolve the rule-preselected variant for THIS product.
+    # All option values still render (no hide/skip); the matching pill is just
+    # pre-checked + pushed to first position via flexbox `order`. The AJAX
+    # `section-rendering-product-card` path passes `vf_skip_rule: true` so the
+    # user's pill click is honoured instead of being overridden by the rule.
+    assign vf_preselect_id = 0
+    unless vf_skip_rule
+      capture vf_preselect_id_str
+        render 'variant-filter--preselect', product: product_resource
+      endcapture
+      assign vf_preselect_id_str = vf_preselect_id_str | strip
+      if vf_preselect_id_str != blank
+        assign vf_preselect_id = vf_preselect_id_str | plus: 0
+      endif
+    endunless
+
+    # Look up the option value name the preselected variant uses on this option,
+    # so we know which pill to mark as `checked` and visually move first.
+    assign vf_preselect_value_name = blank
+    if vf_preselect_id != 0
+      for variant in product_resource.variants
+        if variant.id == vf_preselect_id
+          case target_option.position
+            when 1
+              assign vf_preselect_value_name = variant.option1
+            when 2
+              assign vf_preselect_value_name = variant.option2
+            when 3
+              assign vf_preselect_value_name = variant.option3
+          endcase
+          break
+        endif
+      endfor
+    endif
+
+    # The price + featured-image swap for the rule-preselected variant is done
+    # entirely server-side in `snippets/product-card.liquid`, so this picker
+    # doesn't need a client-side sync request anymore.
+
+    assign target_option_key = 'option' | append: target_option.position
+  -%}
+
+  <product-variant-buttons
+    data-product-id="{{ product_resource.id }}"
+    data-product-url="{{ product_resource.url }}"
+  >
+    <variant-buttons-component
+      data-product-id="{{ product_resource.id }}"
+      data-product-url="{{ product_resource.url }}"
+      ref="variantButtonsPicker"
+    >
+      <form>
+        <fieldset class="variant-option variant-option--buttons">
+          <legend class="visually-hidden">{{ target_option.name | escape }}</legend>
+          <ul class="variant-buttons__list" role="list">
+            {%- for product_option_value in target_option.values -%}
+              {%- liquid
+                assign featured_media = product_option_value.variant.featured_media
+                assign first_available_variant = nil
+                if featured_media == blank
+                  if product_option_value.variant == blank
+                    for variant in product_resource.variants
+                      if variant.available and variant[target_option_key] == product_option_value.name and variant.featured_media
+                        assign featured_media = variant.featured_media
+                        assign first_available_variant = variant
+                        break
+                      endif
+                    endfor
+                  elsif product_option_value.product_url
+                    assign featured_media = product_option_value.variant.product.featured_media
+                  endif
+                endif
+
+                assign value_variant_id = product_option_value.variant.id
+                if value_variant_id == blank and first_available_variant
+                  assign value_variant_id = first_available_variant.id
+                endif
+
+                assign input_id = 'variant-button-' | append: product_resource.id | append: '-' | append: target_option.position | append: '-' | append: forloop.index0
+
+                # Preselect logic: when a collection rule pre-selects a variant,
+                # ONLY that pill is `checked` (overrides Shopify's default). When
+                # there's no rule, fall back to the default selected variant.
+                assign vf_is_preselect = false
+                if vf_preselect_value_name != blank and product_option_value.name == vf_preselect_value_name
+                  assign vf_is_preselect = true
+                endif
+
+                assign vf_check_this = false
+                if vf_preselect_value_name != blank
+                  if vf_is_preselect
+                    assign vf_check_this = true
+                  endif
+                else
+                  if allow_preselection and product_option_value.selected
+                    assign vf_check_this = true
+                  endif
+                endif
+              -%}
+              <li
+                class="variant-buttons__item"
+                {% if vf_is_preselect %}style="order: -1"{% endif %}
+              >
+                <input
+                  type="radio"
+                  id="{{ input_id }}"
+                  class="variant-buttons__input"
+                  name="{{ target_option.name | escape }}-{{ product_resource.id }}-swatch"
+                  value="{{ product_option_value | escape }}"
+                  aria-label="{{ product_option_value.name }}"
+                  data-input-id="{{ target_option.position }}-{{ forloop.index0 }}"
+                  data-option-media-id="{{ featured_media.id }}"
+                  data-option-value-id="{{ product_option_value.id }}"
+                  data-option-available="{{ product_option_value.available }}"
+                  data-connected-product-url="{{ product_option_value.product_url }}"
+                  {% if vf_check_this %}checked{% endif %}
+                  {% if vf_is_preselect %}data-vf-preselected="true"{% endif %}
+                  {% if value_variant_id %}
+                    data-variant-id="{{ value_variant_id }}"
+                    data-first-available-or-first-variant-id="{{ value_variant_id }}"
+                  {% endif %}
+                >
+                <label for="{{ input_id }}" class="variant-buttons__label">
+                  {{- product_option_value.name -}}
+                </label>
+                {% render 'strikethrough-variant', product_option: product_option_value %}
+              </li>
+            {%- endfor -%}
+          </ul>
+        </fieldset>
+        <script type="application/json">
+          {{ product_resource.selected_or_first_available_variant | json }}
+        </script>
+      </form>
+    </variant-buttons-component>
+  </product-variant-buttons>
+
+  {%- # Defer-load the JS that backs `<variant-buttons-component>`. -%}
+  {%- # Browser de-duplicates fetches of the same module URL, so the script -%}
+  {%- # only runs once per page even though the snippet renders per card. -%}
+  <script
+    src="{{ 'variant-buttons.js' | asset_url }}"
+    type="module"
+    fetchpriority="low"
+  ></script>
+{%- endif -%}

@@ -6,7 +6,7 @@
   {% content_for 'blocks', closest.product: product %}
 {% endcapture %}
 
-{% render 'product-card', children: children, product: product %}
+{% render 'product-card', children: children, product: product, block: block %}
 
 {% schema %}
 {
@@ -35,6 +35,9 @@
     },
     {
       "type": "swatches"
+    },
+    {
+      "type": "variant-buttons"
     },
     {
       "type": "_product-card-gallery"
@@ -70,6 +73,12 @@
       "id": "inherit_color_scheme",
       "label": "t:settings.inherit_color_scheme",
       "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_quick_add",
+      "label": "t:settings.hide_quick_add",
+      "default": false
     },
     {
       "type": "color_scheme",

@@ -1,0 +1,37 @@
+{
+  "name": "variant-filter-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "extensions/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "remix vite:build",
+    "dev": "shopify app dev",
+    "deploy:worker": "npm run build && npx wrangler deploy",
+    "deploy:extension": "shopify app deploy",
+    "deploy": "npm run deploy:worker && npm run deploy:extension",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloudflare/kv-asset-handler": "^0.4.2",
+    "@remix-run/cloudflare": "^2.15.2",
+    "@remix-run/react": "^2.15.2",
+    "@shopify/polaris": "^13.9.3",
+    "@shopify/shopify-app-remix": "^3.6.0",
+    "@shopify/shopify-app-session-storage-kv": "^1.0.5",
+    "isbot": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@remix-run/dev": "^2.15.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.14",
+    "vite-tsconfig-paths": "^5.1.4",
+    "wrangler": "^3.109.3"
+  }
+}

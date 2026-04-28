@@ -1,0 +1,17 @@
+{
+  "variant_filter_badge": {
+    "name": "Variant Filter Badge",
+    "settings": {
+      "show_badge": {
+        "label": "Show filter badge"
+      },
+      "badge_text_override": {
+        "label": "Badge text override",
+        "info": "Leave empty to use the rule label set in the Variant Filter app."
+      },
+      "color_scheme": {
+        "label": "Color scheme"
+      }
+    }
+  }
+}

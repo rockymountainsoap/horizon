@@ -1,0 +1,52 @@
+{%- comment -%}
+  App block: wishlist toggle. Requires App Proxy /apps/wishlist → Worker.
+{%- endcomment -%}
+{% if product == blank %}
+  <p class="wishlist-wrapper" role="status">Add this block on a product template.</p>
+{% else %}
+<div
+  id="wishlist-btn-{{ block.id }}-{{ product.id }}"
+  class="wishlist-wrapper"
+  data-product-gid="gid://shopify/Product/{{ product.id }}"
+  data-product-handle="{{ product.handle | escape }}"
+  data-customer-logged-in="{% if customer %}true{% else %}false{% endif %}"
+>
+  <button
+    type="button"
+    class="wishlist-btn"
+    aria-label="{{ 'add_to_wishlist' | t }}: {{ product.title | escape }}"
+    aria-pressed="false"
+    data-wishlist-toggle
+  >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path
+        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"
+        stroke="currentColor"
+        stroke-width="2"
+        fill="none"
+      />
+    </svg>
+    {% if block.settings.show_label %}
+      <span class="wishlist-btn__label">{{ 'save' | t }}</span>
+    {% endif %}
+  </button>
+</div>
+
+{{ 'wishlist-button.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'wishlist-button.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "t:name",
+  "target": "section",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_label",
+      "label": "t:settings.show_label",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

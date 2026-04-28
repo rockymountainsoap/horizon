@@ -1,0 +1,71 @@
+{%- comment -%}
+  TAE snippet: variant-filter--precheck
+  Deployed name: variant-filter--precheck.liquid
+
+  Called ONCE PER OPTION in the outer `for product_option` loop, before the
+  inner `for product_option_value` loop begins.
+
+  Purpose: detect if NO values in this option pass the active rule, and if so
+  output "bypass" so the inner filter is skipped entirely (fail-open: all
+  values show rather than showing an empty option group).
+
+  Parameter (must be passed explicitly — render scope is isolated):
+    product_option — the current options_with_values item
+
+  Accesses:
+    collection — Shopify global, available without being passed
+
+  Output:
+    "bypass" — no values match; caller should skip inner filtering
+    ""        — at least one value matches, or no rule applies
+{%- endcomment -%}
+
+{%- liquid
+  assign vf_pc_rule = collection.metafields['variant-filter']['rule'].value
+
+  if vf_pc_rule == blank or vf_pc_rule.option != product_option.name
+    # No rule targeting this option — nothing to bypass.
+
+  elsif vf_pc_rule.values == blank and vf_pc_rule.filterType != 'size_range'
+    # Malformed rule: exact/contains with no values array — bypass so all show.
+    echo 'bypass'
+
+  elsif vf_pc_rule.filterType == 'size_range' and vf_pc_rule.maxMl == blank
+    # Malformed rule: size_range with no maxMl — bypass so all show.
+    echo 'bypass'
+
+  elsif vf_pc_rule.filterType == 'size_range' and vf_pc_rule.maxMl == 0
+    # Malformed rule: size_range with zero maxMl — bypass so all show.
+    echo 'bypass'
+
+  else
+    assign vf_pc_has_match = false
+
+    for vf_pc_val in product_option.values
+      if vf_pc_rule.filterType == 'exact'
+        for vf_pc_a in vf_pc_rule.values
+          if vf_pc_val.name == vf_pc_a
+            assign vf_pc_has_match = true
+          endif
+        endfor
+
+      elsif vf_pc_rule.filterType == 'contains'
+        for vf_pc_a in vf_pc_rule.values
+          if vf_pc_val.name contains vf_pc_a
+            assign vf_pc_has_match = true
+          endif
+        endfor
+
+      elsif vf_pc_rule.filterType == 'size_range'
+        assign vf_pc_n = vf_pc_val.name | plus: 0
+        if vf_pc_n > 0 and vf_pc_n <= vf_pc_rule.maxMl
+          assign vf_pc_has_match = true
+        endif
+      endif
+    endfor
+
+    unless vf_pc_has_match
+      echo 'bypass'
+    endunless
+  endif
+-%}

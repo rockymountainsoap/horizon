@@ -1,0 +1,182 @@
+{%- liquid
+  assign block_settings = block.settings
+-%}
+
+{% style %}
+  #shopify-block-{{ block.id }} {
+    --variant-buttons-alignment: {{ block_settings.alignment }};
+    --variant-buttons-alignment-mobile: {{ block_settings.alignment_mobile }};
+    --variant-buttons-gap: {{ block_settings.gap }}px;
+    --variant-buttons-padding-block: {{ block_settings.padding_block }}px;
+    --variant-buttons-padding-inline: {{ block_settings.padding_inline }}px;
+    --variant-buttons-border-width: {{ block_settings.border_width }}px;
+    --variant-buttons-border-width-selected: {{ block_settings.border_width_selected }}px;
+    --variant-buttons-border-radius: {{ block_settings.border_radius }}px;
+    --variant-buttons-font-size: {{ block_settings.font_size }}rem;
+    padding-block: {{ block_settings.padding-block-start }}px {{ block_settings.padding-block-end }}px;
+    padding-inline: {{ block_settings.padding-inline-start }}px {{ block_settings.padding-inline-end }}px;
+  }
+{% endstyle %}
+
+<div id="shopify-block-{{ block.id }}" {{ block.shopify_attributes }}>
+  {% render 'variant-buttons', product_resource: closest.product %}
+</div>
+
+{% schema %}
+{
+  "name": "t:names.variant_buttons",
+  "tag": null,
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "t:content.resource_reference_product_swatches"
+    },
+    {
+      "type": "select",
+      "id": "alignment",
+      "label": "t:settings.alignment",
+      "options": [
+        { "value": "flex-start", "label": "t:options.left" },
+        { "value": "center", "label": "t:options.center" },
+        { "value": "flex-end", "label": "t:options.right" }
+      ],
+      "default": "flex-start"
+    },
+    {
+      "type": "select",
+      "id": "alignment_mobile",
+      "label": "t:settings.alignment_mobile",
+      "options": [
+        { "value": "flex-start", "label": "t:options.left" },
+        { "value": "center", "label": "t:options.center" },
+        { "value": "flex-end", "label": "t:options.right" }
+      ],
+      "default": "flex-start"
+    },
+    {
+      "type": "header",
+      "content": "t:content.appearance"
+    },
+    {
+      "type": "range",
+      "id": "gap",
+      "label": "t:settings.gap",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 8
+    },
+    {
+      "type": "range",
+      "id": "padding_block",
+      "label": "t:settings.padding_block",
+      "min": 0,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 6
+    },
+    {
+      "type": "range",
+      "id": "padding_inline",
+      "label": "t:settings.padding_inline",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "label": "t:settings.border_width",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 1
+    },
+    {
+      "type": "range",
+      "id": "border_width_selected",
+      "label": "t:settings.border_width_selected",
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "unit": "px",
+      "default": 2
+    },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "t:settings.border_radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "font_size",
+      "label": "t:settings.font_size",
+      "min": 0.5,
+      "max": 1.5,
+      "step": 0.1,
+      "unit": "rem",
+      "default": 0.8
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-start",
+      "label": "t:settings.left",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-inline-end",
+      "label": "t:settings.right",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.variant_buttons",
+      "category": "t:categories.product"
+    }
+  ]
+}
+{% endschema %}
