@@ -1,0 +1,30 @@
+{%- liquid
+  assign product = closest.product
+  assign value = product.metafields.global.Instructions
+-%}
+
+{%- if value != blank -%}
+  <div class="r-pdp-how-to-use" {{ block.shopify_attributes }}>
+    <div class="r-pdp-how-to-use__body">{{ value }}</div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-how-to-use__body {
+    line-height: 1.6;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_how_to_use",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_how_to_use",
+      "category": "Rocky — PDP"
+    }
+  ]
+}
+{% endschema %}

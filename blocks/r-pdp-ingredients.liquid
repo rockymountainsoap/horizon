@@ -1,0 +1,62 @@
+{%- liquid
+  assign product = closest.product
+  assign value = product.metafields.custom.ingredient_allergen
+-%}
+
+{%- if value != blank -%}
+  <div class="r-pdp-ingredients" {{ block.shopify_attributes }}>
+    {%- capture body -%}{{ value | metafield_tag }}{%- endcapture -%}
+    <div class="r-pdp-ingredients__body">{{ body | replace: '†', '<sup>†</sup>' }}</div>
+
+    {%- if block.settings.show_footnote -%}
+      <p class="r-pdp-ingredients__footnote">
+        {{ 'rocky.pdp_ingredients.updated_html' | t }}
+      </p>
+    {%- endif -%}
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-ingredients__body {
+    line-height: 1.6;
+  }
+
+  .r-pdp-ingredients__body sup {
+    font-size: 0.7em;
+    line-height: 0;
+  }
+
+  .r-pdp-ingredients__footnote {
+    margin-block-start: var(--margin-sm, 12px);
+    font-size: 0.75rem;
+    color: var(--color-foreground-secondary, #666);
+    text-transform: none;
+  }
+
+  .r-pdp-ingredients__footnote a {
+    color: inherit;
+    text-decoration: underline;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_ingredients",
+  "tag": null,
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_footnote",
+      "label": "t:settings.r_pdp_ingredients_show_footnote",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_ingredients",
+      "category": "Rocky — PDP",
+      "settings": { "show_footnote": true }
+    }
+  ]
+}
+{% endschema %}

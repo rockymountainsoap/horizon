@@ -236,6 +236,12 @@
     "media_type_info": "Features are populated from your menu links"
   },
   "names": {
+    "r_locator": "Rocky — Store locator",
+    "r_pdp_description": "Rocky — PDP description",
+    "r_pdp_ingredients": "Rocky — PDP ingredients",
+    "r_pdp_sustainability": "Rocky — PDP sustainability",
+    "r_pdp_how_to_use": "Rocky — PDP how to use",
+    "r_pdp_find_in_store": "Rocky — PDP find in store",
     "column": "Column",
     "product_title": "Product title",
     "custom_liquid": "Custom Liquid",
@@ -750,6 +756,15 @@
     "below_media": "Below media"
   },
   "settings": {
+    "r_locator_header": "Locator worker",
+    "r_locator_paragraph": "Endpoint that the storefront calls for store locations and per-PDP find-in-store inventory. Falls back to the per-block override when blank.",
+    "r_locator_worker_url": "Worker base URL",
+    "r_locator_worker_url_info": "e.g. https://rocky-locator-worker.example.workers.dev",
+    "r_locator_enable_inventory": "Enable inventory by location on PDPs",
+    "r_pdp_ingredients_show_footnote": "Show the \"we updated…\" link",
+    "r_pdp_find_in_store_locator_url": "Store locator page URL",
+    "r_pdp_find_in_store_worker_override": "Worker URL override",
+    "r_pdp_find_in_store_worker_override_info": "Optional. Overrides the global locator worker URL for this block only.",
     "accordion": "Accordion",
     "account": "Account",
     "actions_display_style": "Menu style",

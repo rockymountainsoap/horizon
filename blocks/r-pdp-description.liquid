@@ -1,0 +1,99 @@
+{%- liquid
+  assign product = closest.product
+  assign variant = product.selected_or_first_available_variant
+
+  # Honour the legacy "<!-- split -->" convention so curated PDP copy can
+  # interleave hero blurb / detail blurb without a metafield split.
+  assign description_parts = product.description | split: '<!-- split -->'
+  assign description_top = description_parts | first | strip
+  assign description_bottom = ''
+  if description_parts.size > 1
+    assign description_bottom = description_parts | last | strip
+  endif
+-%}
+
+<div class="r-pdp-description" {{ block.shopify_attributes }}>
+  {%- if description_top != blank -%}
+    <div class="r-pdp-description__rte">{{ description_top }}</div>
+  {%- endif -%}
+
+  {%- if description_bottom != blank -%}
+    <div class="r-pdp-description__rte">{{ description_bottom }}</div>
+  {%- endif -%}
+
+  {%- if product.type == 'Slab of Soap' -%}
+    <p class="r-pdp-description__note">{{ 'rocky.pdp_description.slab_of_soap' | t }}</p>
+  {%- endif -%}
+
+  {%- for tag in product.tags -%}
+    {%- if tag contains 'bath bomb offer' -%}
+      <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_bath_bomb' | t }}</p>
+    {%- endif -%}
+    {%- if tag contains 'earth-promo' -%}
+      <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_earth' | t }}</p>
+    {%- endif -%}
+  {%- endfor -%}
+
+  {%- unless product.type == 'Accessories'
+    or product.type == 'Gift Card'
+    or product.type == 'Packaging'
+    or product.title contains 'Essentials Pouch' -%}
+    {%- liquid
+      assign meta_parts = ''
+      assign meta_parts = meta_parts | append: 'rocky.pdp_description.meta_tested' | t
+
+      if product.metafields.global.organic
+        assign organic_html = 'rocky.pdp_description.meta_organic_html' | t: percent: product.metafields.global.organic
+        assign meta_parts = meta_parts | append: ' | ' | append: organic_html
+      endif
+
+      for tag in product.tags
+        if tag contains 'glass'
+          assign glass_label = 'rocky.pdp_description.meta_glass' | t
+          assign meta_parts = meta_parts | append: ' | ' | append: glass_label
+        endif
+        if tag contains 'plastic'
+          assign plastic_label = 'rocky.pdp_description.meta_plastic' | t
+          assign meta_parts = meta_parts | append: ' | ' | append: plastic_label
+        endif
+      endfor
+
+      if variant.options[1] != blank
+        assign meta_parts = meta_parts | append: ' | Size/Weight: ' | append: variant.options[1]
+      endif
+    -%}
+    <p class="r-pdp-description__meta">{{ meta_parts }}</p>
+  {%- endunless -%}
+</div>
+
+{% stylesheet %}
+  .r-pdp-description__rte + .r-pdp-description__rte {
+    margin-block-start: var(--margin-sm, 12px);
+  }
+
+  .r-pdp-description__note,
+  .r-pdp-description__promo,
+  .r-pdp-description__meta {
+    margin-block-start: var(--margin-sm, 12px);
+    font-size: var(--font-paragraph--size, 0.95rem);
+  }
+
+  .r-pdp-description__meta {
+    color: var(--color-foreground-secondary, #555);
+    font-size: 0.85rem;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_description",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_description",
+      "category": "Rocky — PDP"
+    }
+  ]
+}
+{% endschema %}

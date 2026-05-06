@@ -1,0 +1,30 @@
+{%- liquid
+  assign product = closest.product
+  assign value = product.metafields.custom.sustainability
+-%}
+
+{%- if value != blank -%}
+  <div class="r-pdp-sustainability" {{ block.shopify_attributes }}>
+    <div class="r-pdp-sustainability__body">{{ value | metafield_tag }}</div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-sustainability__body {
+    line-height: 1.6;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_sustainability",
+  "tag": null,
+  "settings": [],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_sustainability",
+      "category": "Rocky — PDP"
+    }
+  ]
+}
+{% endschema %}

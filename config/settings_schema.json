@@ -2287,5 +2287,30 @@
         "default": "equal-width-buttons"
       }
     ]
+  },
+  {
+    "name": "t:names.r_locator",
+    "settings": [
+      {
+        "type": "header",
+        "content": "t:settings.r_locator_header"
+      },
+      {
+        "type": "paragraph",
+        "content": "t:settings.r_locator_paragraph"
+      },
+      {
+        "type": "url",
+        "id": "rocky_locator_worker_url",
+        "label": "t:settings.r_locator_worker_url",
+        "info": "t:settings.r_locator_worker_url_info"
+      },
+      {
+        "type": "checkbox",
+        "id": "enable_inventory_by_location",
+        "label": "t:settings.r_locator_enable_inventory",
+        "default": true
+      }
+    ]
   }
 ]

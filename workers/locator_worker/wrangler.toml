@@ -1,0 +1,64 @@
+# Rocky locator worker — Cloudflare Worker (storefront API)
+#
+# Serves two surfaces from a single Worker:
+#   1. Store locations  — /stores, /stores/:handle, /stores/:handle/email
+#      Reads `store_location` metaobjects via Shopify Admin GraphQL.
+#   2. Per-location inventory — /inventory?variantId=…
+#      Reads productVariant.inventoryItem.inventoryLevels live per request.
+#
+# Auth: Client Credentials Grant (Shopify OAuth 2.0 §4.4).
+#   - Tokens are auto-acquired and cached in KV. No manual install step.
+#   - Requires: SHOPIFY_CLIENT_ID (var) + SHOPIFY_CLIENT_SECRET (Wrangler secret).
+#
+# Setup (one-time):
+#   1. wrangler kv namespace create APP_KV
+#      → paste returned id below under [[kv_namespaces]]
+#   2. wrangler secret put SHOPIFY_CLIENT_SECRET
+#   3. npx wrangler deploy
+
+name = "rocky-locator-worker"
+main = "locator_worker.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Shared vars ──
+# Backed by the Rocky production storefront store
+# (rocky-soap-development.myshopify.com — this is where the storefront
+# `store_location` metaobjects live, despite the dev-style hostname).
+[vars]
+ENVIRONMENT = "production"
+SHOP_DOMAIN = "rocky-soap-development.myshopify.com"
+SHOP_MYSHOPIFY_DOMAIN = "rocky-soap-development.myshopify.com"
+SHOPIFY_CLIENT_ID = "1fea0315e69ec08ee8349dceef023c6f"
+INVENTORY_CACHE_SECONDS = "300"
+STORES_CACHE_SECONDS = "3600"
+ALLOWED_ORIGINS = "https://www.rockymountainsoap.com,https://rockymountainsoap.com,https://rocky-soap-development.myshopify.com,https://rocky-test-store.myshopify.com,https://rocky-horizon-development.myshopify.com,http://localhost:5173"
+
+# ── KV: Admin token cache ──
+# Cloudflare title is LOCATOR_KV (separate from native_worker's APP_KV).
+# Binding stays as APP_KV so src/shopify/tokens.js can stay shop-agnostic.
+[[kv_namespaces]]
+binding = "APP_KV"
+id = "75a343c8ac014f44901e9cac1e7c3f04"
+
+# ─────────────────────────────────────────────────────────
+# Production — deploy with: npx wrangler deploy --env production
+# ─────────────────────────────────────────────────────────
+[env.production]
+name = "rocky-locator-worker-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+SHOP_DOMAIN = "rocky-mountain-soap.myshopify.com"
+SHOP_MYSHOPIFY_DOMAIN = "rocky-mountain-soap.myshopify.com"
+SHOPIFY_CLIENT_ID = "ebe31aebe73b979149df832d1e1f17bb"
+INVENTORY_CACHE_SECONDS = "300"
+STORES_CACHE_SECONDS = "3600"
+ALLOWED_ORIGINS = "https://rockymountainsoap.com,https://rocky-mountain-soap.myshopify.com"
+
+# Production needs its own KV — create with:
+#   wrangler kv namespace create APP_KV --env production
+# then paste the id below.
+# [[env.production.kv_namespaces]]
+# binding = "APP_KV"
+# id = "REPLACE_WITH_PRODUCTION_KV_ID"

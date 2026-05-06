@@ -578,7 +578,8 @@
     "y_position": "Position verticale",
     "enable_sticky_add_to_cart": "Barre d’ajout au panier flottante",
     "sticky_add_to_cart": "Ajout au panier flottant",
-    "actions_display_style": "Style de menu"
+    "actions_display_style": "Style de menu",
+    "show_label": "TODO"
   },
   "options": {
     "apple": "Pomme",
@@ -1110,5 +1111,6 @@
     "other_sections": "Autre",
     "storytelling": "Narration",
     "text": "Texte"
-  }
+  },
+  "name": "TODO"
 }

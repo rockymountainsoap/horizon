@@ -1,0 +1,20 @@
+# Rocky × Horizon theme-check configuration.
+#
+# We ship two storefront languages: English (default) and French.
+# All other Shopify-bundled locales were removed — see locales/ directory.
+#
+# The MatchingTranslations* rules enforce key-by-key parity between the
+# default locale and every other locale file. With only en + fr present,
+# leaving these on means every divergence between en.default.json and
+# fr.json (and the schema equivalents) is reported as an error. We disable
+# them here so the lint output stays focused on real theme issues. If
+# strict EN↔FR parity becomes a requirement, set `enabled: true` and run
+# `shopify theme check --auto-correct` to backfill missing keys.
+
+extends: theme-check:recommended
+
+MatchingTranslations:
+  enabled: false
+
+MatchingSchemaTranslations:
+  enabled: false

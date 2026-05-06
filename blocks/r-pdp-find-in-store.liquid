@@ -1,0 +1,176 @@
+{%- liquid
+  assign product = closest.product
+  assign variant = product.selected_or_first_available_variant
+  assign worker_url = settings.rocky_locator_worker_url | default: block.settings.worker_url_override
+  assign feature_enabled = settings.enable_inventory_by_location
+
+  assign hidden_for_type = false
+  if product.type == 'Gift Card' or product.type == 'sunscreen'
+    assign hidden_for_type = true
+  endif
+-%}
+
+{%- unless hidden_for_type -%}
+  <script src="{{ 'r-pdp-find-in-store.js' | asset_url }}" type="module" defer></script>
+
+  {%- capture variant_titles_json -%}
+    {
+      {%- for v in product.variants -%}
+        "{{ v.id }}":{{ v.title | json }}{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    }
+  {%- endcapture -%}
+
+  <r-pdp-find-in-store
+    class="r-pdp-find-in-store"
+    data-worker-url="{{ worker_url | escape }}"
+    data-product-type="{{ product.type | escape }}"
+    data-initial-variant-id="{{ variant.id }}"
+    data-initial-variant-title="{{ variant.title | escape }}"
+    data-feature-enabled="{{ feature_enabled }}"
+    data-variant-titles="{{ variant_titles_json | escape }}"
+    data-store-locator-url="{{ block.settings.store_locator_url | default: '/pages/store-locator' | escape }}"
+    {{ block.shopify_attributes }}
+  >
+    <ul class="r-pdp-find-in-store__list" ref="list">
+      <li class="r-pdp-find-in-store__loading" ref="loading">
+        {{- 'rocky.pdp_find_in_store.loading' | t -}}
+      </li>
+    </ul>
+
+    <p class="r-pdp-find-in-store__error" ref="error" hidden>
+      {{- 'rocky.pdp_find_in_store.error' | t -}}
+    </p>
+
+    <a
+      href="{{ block.settings.store_locator_url | default: '/pages/store-locator' }}"
+      target="_blank"
+      rel="noopener"
+      class="r-pdp-find-in-store__cta"
+    >
+      {{- 'rocky.pdp_find_in_store.view_all' | t -}}
+    </a>
+  </r-pdp-find-in-store>
+{%- endunless -%}
+
+{% stylesheet %}
+  .r-pdp-find-in-store {
+    display: block;
+    min-height: 100px;
+  }
+
+  .r-pdp-find-in-store__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .r-pdp-find-in-store__list.is-loading {
+    opacity: 0.5;
+  }
+
+  .r-pdp-find-in-store__loading {
+    padding: var(--padding-md, 16px);
+    text-align: center;
+    color: var(--color-foreground-secondary, #666);
+  }
+
+  .r-pdp-find-in-store__error {
+    padding: var(--padding-md, 16px);
+    text-align: center;
+    color: var(--color-error, #d32f2f);
+  }
+
+  .r-pdp-find-in-store__store {
+    padding: var(--padding-sm, 12px) 0;
+    border-block-end: 1px solid var(--color-border, #e0e0e0);
+  }
+
+  .r-pdp-find-in-store__store:last-child {
+    border-block-end: none;
+  }
+
+  .r-pdp-find-in-store__store-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-block-end: 4px;
+  }
+
+  .r-pdp-find-in-store__store-name {
+    font-weight: 600;
+  }
+
+  .r-pdp-find-in-store__store-stock {
+    white-space: nowrap;
+  }
+
+  .r-pdp-find-in-store__store-stock--low {
+    color: var(--color-warning, #f57c00);
+  }
+
+  .r-pdp-find-in-store__store-stock--none {
+    color: var(--color-foreground-secondary, #757575);
+  }
+
+  .r-pdp-find-in-store__store-address {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .r-pdp-find-in-store__store-tel {
+    display: inline-block;
+    margin-inline-start: var(--margin-md, 16px);
+    font-size: 0.9em;
+  }
+
+  .r-pdp-find-in-store__cta {
+    display: inline-block;
+    margin-block-start: var(--margin-md, 16px);
+    padding: var(--padding-sm, 12px) var(--padding-md, 16px);
+    border: 1px solid var(--color-border, #e0e0e0);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  @media (max-width: 749px) {
+    .r-pdp-find-in-store__store-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_find_in_store",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "store_locator_url",
+      "label": "t:settings.r_pdp_find_in_store_locator_url",
+      "default": "/pages/store-locator"
+    },
+    {
+      "type": "url",
+      "id": "worker_url_override",
+      "label": "t:settings.r_pdp_find_in_store_worker_override",
+      "info": "t:settings.r_pdp_find_in_store_worker_override_info"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_find_in_store",
+      "category": "Rocky — PDP",
+      "settings": { "store_locator_url": "/pages/store-locator" }
+    }
+  ]
+}
+{% endschema %}

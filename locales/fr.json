@@ -336,5 +336,12 @@
       "success_moderated": "Commentaire publié, en attente de modération",
       "success": "Commentaire publié"
     }
-  }
+  },
+  "heading": "TODO",
+  "empty": "TODO",
+  "startShopping": "TODO",
+  "remove": "TODO",
+  "viewProduct": "TODO",
+  "outOfStock": "TODO",
+  "loadError": "TODO"
 }
