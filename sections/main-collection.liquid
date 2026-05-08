@@ -48,6 +48,10 @@
 
     {% paginate collection.products by products_per_page %}
       {% capture children %}
+        {%- # r: emit all r-inflow-card blocks once per render. Each block's body sets `style="order: position*2+1"`, and each product (below) sets `style="order: (offset+index)*2"`. CSS grid auto-placement reads `order`, so cards land at their merchant-set positions without duplication on infinite-scroll page fetches (paginated-list.js only appends `[ref="cards[]"]` elements). -%}
+        {% content_for 'blocks' %}
+        {%- # r: end -%}
+
         {% for product in collection.products %}
           <li
             id="{{ section.id }}-{{ product.id }}"
@@ -55,6 +59,9 @@
             data-page="{{ paginate.current_page }}"
             data-product-id="{{ product.id }}"
             ref="cards[]"
+            {%- # r: order pairs with r-inflow-card's order (see block file) -%}
+            style="order: {{ paginate.current_offset | plus: forloop.index | times: 2 }};"
+            {%- # r: end -%}
           >
             {% # theme-check-disable %}
             {% content_for 'block', type: '_product-card', id: 'product-card', closest.product: product %}
@@ -260,6 +267,11 @@
       "step": 1,
       "unit": "px",
       "default": 8
+    }
+  ],
+  "blocks": [
+    {
+      "type": "r-inflow-card"
     }
   ],
   "presets": []

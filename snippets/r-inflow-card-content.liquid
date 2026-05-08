@@ -1,0 +1,61 @@
+{%- comment -%}
+  Renders the inner content of a Rocky inflow card.
+  Used by:
+    - blocks/r-inflow-card.liquid          (when the block stands alone)
+    - snippets/r-inflow-card-cells.liquid  (when the block is composed inline
+                                            into the collection product grid)
+
+  The caller is responsible for:
+    - The outer cell wrapper (e.g. <li class="r-inflow-cell">)
+    - Applying {{ block.shopify_attributes }} on whichever element should
+      be focusable in the theme editor
+    - Applying the color-scheme class on whichever element owns the surface
+
+  @param {object} block - The r-inflow-card block instance
+{%- endcomment -%}
+
+{%- liquid
+  assign has_image = false
+  if block.settings.image != blank
+    assign has_image = true
+  endif
+
+  assign has_cta = false
+  if block.settings.cta_label != blank and block.settings.cta_link != blank
+    assign has_cta = true
+  endif
+-%}
+
+{%- if has_image -%}
+  <div class="r-inflow-card__media">
+    {{
+      block.settings.image
+      | image_url: width: 1200
+      | image_tag:
+        loading: 'lazy',
+        sizes: '(min-width: 750px) 50vw, 100vw',
+        widths: '300, 600, 900, 1200, 1600',
+        class: 'r-inflow-card__image',
+        alt: block.settings.image.alt | default: block.settings.heading
+    }}
+  </div>
+{%- endif -%}
+
+<div class="r-inflow-card__body">
+  {%- if block.settings.heading != blank -%}
+    <h3 class="r-inflow-card__heading">{{ block.settings.heading }}</h3>
+  {%- endif -%}
+
+  {%- if block.settings.body_richtext != blank -%}
+    <div class="r-inflow-card__copy">{{ block.settings.body_richtext }}</div>
+  {%- endif -%}
+
+  {%- if has_cta -%}
+    <a
+      class="r-inflow-card__cta button button-secondary"
+      href="{{ block.settings.cta_link }}"
+    >
+      {{ block.settings.cta_label }}
+    </a>
+  {%- endif -%}
+</div>

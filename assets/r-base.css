@@ -118,4 +118,38 @@
    Add component CSS here only when identical styles appear in 2+ Rocky files.
    ============================================================================= */
 
-/* r-* components will be added here as the project grows */
+/* -----------------------------------------------------------------------------
+   .r-inflow-cell — grid cell for inline rich-content cards in the PLP
+   Used by:
+     - sections/main-collection.liquid (cell wrapper inside the product grid)
+     - blocks/r-inflow-card.liquid    (inner card content)
+
+   The cell sets its grid span via three custom properties supplied inline
+   per-block by the section. Mobile span is gated by a container query on
+   .product-grid (which sets container-name: product-grid in
+   snippets/product-grid.liquid).
+   --------------------------------------------------------------------------- */
+.r-inflow-cell {
+  grid-column: span var(--r-inflow-col-span, 1);
+  grid-row: span var(--r-inflow-row-span, 1);
+  display: flex;
+}
+
+.r-inflow-cell > * {
+  width: 100%;
+}
+
+/* When inflow cards are present, switch the product grid to dense packing
+   so trailing products backfill any cells a card's span couldn't occupy
+   in its target row. Only kicks in when at least one r-inflow-cell exists,
+   preserving sparse (DOM-order) packing for grids without cards. */
+.product-grid:has(.r-inflow-cell) {
+  grid-auto-flow: row dense;
+}
+
+@container product-grid (max-width: 749px) {
+  .r-inflow-cell {
+    grid-column: span var(--r-inflow-col-span-mobile, 2);
+    grid-row: span 1;
+  }
+}
