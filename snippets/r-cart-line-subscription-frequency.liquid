@@ -1,0 +1,93 @@
+{% doc %}
+  Rocky — Cart Line Subscription Frequency
+
+  Renders the active selling plan name for a cart line item as a <select>
+  dropdown when more than one selling plan is available, or as a static
+  <p> when only one is available. Selecting a different option swaps the
+  line's selling plan via /cart/change.js.
+
+  Caller is responsible for only rendering this when the line already has
+  an active subscription (item.selling_plan_allocation present).
+
+  @param {object} item - A cart line item with an active selling_plan_allocation.
+
+  @example
+  {% if item.selling_plan_allocation %}
+    {% render 'r-cart-line-subscription-frequency', item: item %}
+  {% endif %}
+{% enddoc %}
+
+{%- liquid
+  assign current_plan = item.selling_plan_allocation.selling_plan
+  assign allocations = item.variant.selling_plan_allocations
+-%}
+
+{%- if allocations.size <= 1 -%}
+  <p class="r-cart-frequency__label">{{ current_plan.name }}</p>
+{%- else -%}
+  <r-cart-line-subscription-frequency
+    class="r-cart-frequency"
+    data-line-key="{{ item.key }}"
+    data-current-plan-id="{{ current_plan.id }}"
+  >
+    <label class="visually-hidden" for="r-cart-frequency-{{ item.key }}">
+      {{ 'rocky.cart.subscribe.frequency_label' | t }}
+    </label>
+    <select
+      id="r-cart-frequency-{{ item.key }}"
+      class="r-cart-frequency__select"
+      name="selling_plan"
+    >
+      {%- for allocation in allocations -%}
+        <option
+          value="{{ allocation.selling_plan.id }}"
+          {% if allocation.selling_plan.id == current_plan.id %}selected{% endif %}
+        >
+          {{ allocation.selling_plan.name }}
+        </option>
+      {%- endfor -%}
+    </select>
+  </r-cart-line-subscription-frequency>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-cart-frequency {
+    display: inline-block;
+    margin-block-start: 4px;
+  }
+
+  .r-cart-frequency__label {
+    margin: 0;
+  }
+
+  .r-cart-frequency__select {
+    appearance: none;
+    background-color: transparent;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      right 10px top 50%,
+      right 6px top 50%;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+    border: 1px solid var(--color-border);
+    border-radius: var(--style-border-radius-buttons-primary, 4px);
+    padding-block: 4px;
+    padding-inline: 8px 22px;
+    font: inherit;
+    color: var(--color-foreground);
+    cursor: pointer;
+    max-inline-size: 100%;
+  }
+
+  .r-cart-frequency__select:focus-visible {
+    outline: 2px solid var(--color-foreground);
+    outline-offset: 2px;
+  }
+
+  .r-cart-frequency__select:disabled {
+    opacity: 0.5;
+    cursor: progress;
+  }
+{% endstylesheet %}

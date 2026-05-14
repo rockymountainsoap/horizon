@@ -28,6 +28,13 @@
   type="module"
   fetchpriority="low"
 ></script>
+{%- # r: subscription-toggle script -%}
+<script
+  src="{{ 'r-cart-line-subscription-toggle.js' | asset_url }}"
+  type="module"
+  fetchpriority="low"
+></script>
+{%- # r: end -%}
 
 <div
   {{ block.shopify_attributes }}
@@ -246,9 +253,11 @@
                         </dl>
                       {%- endif -%}
 
+                      {%- # r: subscription-frequency dropdown -%}
                       {%- if item.selling_plan_allocation -%}
-                        <p>{{ item.selling_plan_allocation.selling_plan.name }}</p>
+                        {% render 'r-cart-line-subscription-frequency', item: item %}
                       {%- endif -%}
+                      {%- # r: end -%}
 
                       {%- if item.line_level_discount_allocations.size > 0 -%}
                         <ul
@@ -261,6 +270,10 @@
                         </ul>
                       {%- endif -%}
                     {%- endif -%}
+
+                    {%- # r: subscription-toggle -%}
+                    {% render 'r-cart-line-subscription-toggle', item: item %}
+                    {%- # r: end -%}
                   </div>
 
                   <div class="cart-items__unit-price-wrapper">

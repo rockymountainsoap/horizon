@@ -389,6 +389,14 @@
       "low_stock": "Low stock — Call us!",
       "no_stock": "No stock",
       "view_all": "View all store locations"
+    },
+    "cart": {
+      "subscribe": {
+        "cta": "Subscribe",
+        "active": "Subscribed",
+        "aria_label": "Toggle subscription for this item",
+        "frequency_label": "Subscription frequency"
+      }
     }
   }
 }
