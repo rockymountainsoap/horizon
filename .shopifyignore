@@ -1,0 +1,35 @@
+# Template files
+templates/*
+
+# Configuration and locale files
+config/settings_data.json
+
+# Documentation files
+README.md
+CHANGELOG.md
+FONT_STANDARDIZATION_GUIDE.md
+docs/*
+
+# Git and development files
+.git/*
+.github/*
+.gitignore
+.shopify/*
+
+# Node.js / Build files (if any)
+node_modules/*
+*.log
+.env
+.env.local
+
+# IDE/Editor files
+.vscode/*
+.idea/*
+*.sublime-*
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.tmp
+*~

@@ -111,6 +111,16 @@
       fetchpriority="low"
     ></script>
 
+    {%- # r: free-gift orchestrator script -%}
+    {%- if settings.cart_incentive_enabled and settings.cart_free_gift_variant_id != blank -%}
+      <script
+        src="{{ 'cart-free-gift.js' | asset_url }}"
+        type="module"
+        fetchpriority="low"
+      ></script>
+    {%- endif -%}
+    {%- # r: end -%}
+
     {% capture empty_cart_drawer_content %}
       <div class="cart-drawer__header">
         <button
@@ -142,12 +152,25 @@
       </div>
     {% endcapture %}
 
+    {%- # r: free-gift config exposed to cart-free-gift.js -%}
+    {%- liquid
+      assign r_gift_variant_id = settings.cart_free_gift_variant_id | default: '' | strip
+      assign r_tier2_cents = settings.cart_tier2_threshold | times: 100
+    -%}
+    {%- # r: end -%}
+
     <cart-drawer-component
       class="cart-drawer{% if display_style == 'text' %} cart-drawer--text{% endif %}"
       {{ block.shopify_attributes }}
       {% if settings.auto_open_cart_drawer %}
         auto-open
       {% endif %}
+      {%- # r: free-gift data -%}
+      {%- if settings.cart_incentive_enabled and r_gift_variant_id != blank -%}
+        data-r-gift-variant-id="{{ r_gift_variant_id }}"
+        data-r-tier2-cents="{{ r_tier2_cents }}"
+      {%- endif -%}
+      {%- # r: end -%}
     >
       <template id="empty-cart-template">
         {{ empty_cart_drawer_content }}
@@ -206,6 +229,12 @@
                   </span>
                 </button>
               </div>
+
+              {%- # r: tiered rewards progress bar -%}
+              {%- if settings.cart_incentive_enabled -%}
+                {% render 'cart-progress-bar' %}
+              {%- endif -%}
+              {%- # r: end -%}
 
               <scroll-hint
                 class="cart-drawer__content"
@@ -413,7 +442,7 @@
     mask-image: linear-gradient(to bottom, transparent, black var(--cart-drawer-summary-padding));
 
     @media screen and (min-width: 750px) {
-      --cart-drawer-summary-padding: var(--padding-2xl);
+      --cart-drawer-summary-padding: var(--padding-xl);
     }
   }
 

@@ -1,0 +1,145 @@
+{%- doc -%}
+  Renders the trust block above the checkout button: satisfaction,
+  returns, and aggregate rating. All copy is merchant-editable.
+{%- enddoc -%}
+
+{%- liquid
+  assign rating_value = settings.cart_trust_rating_value
+  assign rating_count_label = settings.cart_trust_rating_count_label
+  assign reviews_url = settings.cart_trust_reviews_url
+
+  assign single_product_url = blank
+  if cart.item_count > 0
+    assign first_item = cart.items | first
+    assign single_product_url = first_item.product.url | append: '#reviews'
+  endif
+
+  assign rating_href = reviews_url
+  if single_product_url != blank
+    assign rating_href = single_product_url
+  endif
+-%}
+
+<div class="r-cart-trust">
+  <div class="r-cart-trust__item r-cart-trust__satisfaction">
+    <span class="r-cart-trust__icon svg-wrapper" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2 9.5 8 3 9l5 5-1.5 7L12 17l6 4-1.5-7 5-5-6.5-1z"/>
+      </svg>
+    </span>
+    <span class="r-cart-trust__label">{{ settings.cart_trust_satisfaction_label }}</span>
+  </div>
+
+  <div class="r-cart-trust__item r-cart-trust__returns">
+    <span class="r-cart-trust__icon svg-wrapper" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 3-6.7"/>
+        <path d="M3 4v5h5"/>
+      </svg>
+    </span>
+    <span class="r-cart-trust__label">{{ settings.cart_trust_returns_label }}</span>
+  </div>
+
+  <div class="r-cart-trust__item r-cart-trust__rating">
+    {%- if rating_href != blank -%}
+      <a class="r-cart-trust__rating-link" href="{{ rating_href }}">
+    {%- endif -%}
+      <span class="r-cart-trust__stars" aria-label="{{ 'rocky.cart.trust.rating_aria' | t: rating: rating_value }}">
+        {%- for i in (1..5) -%}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61z"/>
+          </svg>
+        {%- endfor -%}
+      </span>
+      <span class="r-cart-trust__rating-value">{{ rating_value }}</span>
+    {%- if rating_href != blank -%}
+      </a>
+    {%- endif -%}
+
+    {%- if rating_count_label != blank -%}
+      {%- if reviews_url != blank -%}
+        <a class="r-cart-trust__rating-count" href="{{ reviews_url }}">{{ rating_count_label }}</a>
+      {%- else -%}
+        <span class="r-cart-trust__rating-count">{{ rating_count_label }}</span>
+      {%- endif -%}
+    {%- endif -%}
+  </div>
+</div>
+
+{% stylesheet %}
+  .r-cart-trust {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--gap-md);
+    width: 100%;
+    padding-block: var(--padding-sm);
+    border-block: 1px solid var(--color-border);
+    margin-block-end: var(--margin-md);
+  }
+
+  @media screen and (max-width: 480px) {
+    .r-cart-trust {
+      grid-template-columns: 1fr;
+      gap: var(--gap-xs);
+    }
+  }
+
+  .r-cart-trust__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-3xs, 4px);
+    text-align: center;
+    font-size: var(--font-size--xs);
+    color: var(--color-foreground);
+  }
+
+  .r-cart-trust__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--color-foreground);
+  }
+
+  .r-cart-trust__label {
+    font-size: var(--font-size--xs);
+    line-height: 1.2;
+  }
+
+  .r-cart-trust__rating {
+    gap: var(--gap-2xs, 6px);
+  }
+
+  .r-cart-trust__rating-link,
+  .r-cart-trust__rating-count {
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-3xs, 4px);
+  }
+
+  .r-cart-trust__rating-link:hover,
+  .r-cart-trust__rating-count:hover {
+    text-decoration: underline;
+  }
+
+  .r-cart-trust__stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    line-height: 0;
+    color: var(--color-foreground);
+  }
+
+  .r-cart-trust__rating-value {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .r-cart-trust__rating-count {
+    font-size: var(--font-size--2xs);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text, 0.7));
+  }
+{% endstylesheet %}

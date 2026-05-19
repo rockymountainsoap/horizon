@@ -396,6 +396,41 @@
         "active": "Subscribed",
         "aria_label": "Toggle subscription for this item",
         "frequency_label": "Subscription frequency"
+      },
+      "progress": {
+        "tier1_under": "You're {{ amount }} from Free Shipping",
+        "tier1_unlocked": "Add {{ amount }} to claim your Free Gift",
+        "tier1_complete": "Free Shipping unlocked",
+        "tier2_unlocked": "Free Shipping & Free Gift unlocked",
+        "earned_shipping": "Free Shipping",
+        "earned_gift": "Free Gift",
+        "aria_label": "Cart rewards progress"
+      },
+      "bumpers": {
+        "heading_fallback": "You're so close! Add one of these to ship for free.",
+        "recs_heading_fallback": "You might also like",
+        "add_aria": "Add {{ title }} to cart",
+        "added_aria": "Added",
+        "add_label": "Add",
+        "show_more": "Show more",
+        "count": "{{ shown }} of {{ total }}",
+        "empty_recs": "No recommendations available."
+      },
+      "trust": {
+        "rating_aria": "{{ rating }} out of 5 stars"
+      },
+      "free_gift": {
+        "badge": "Free Gift",
+        "aria": "Free gift, locked in cart"
+      },
+      "low_stock": {
+        "badge": "Only {{ count }} left"
+      },
+      "empty": {
+        "heading_fallback": "Start Here",
+        "subheading_fallback": "Your next favourite thing is one step away.",
+        "add_aria": "Add {{ title }} to cart",
+        "add_label": "Add"
       }
     }
   }

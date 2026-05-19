@@ -1,0 +1,50 @@
+{%- comment -%}
+  Internal Section Rendering API endpoint for the cart drawer's
+  recommendations mode. Not added to any template by merchants.
+
+  cart-bumpers.js fetches:
+    /recommendations/products
+      ?limit={N}
+      &product_id={anchor product id}
+      &section_id=r-cart-recommendations
+      &intent=complementary
+
+  The response is parsed for <li class="r-cart-bumpers__item"> rows and
+  injected into the live <ul data-r-bumpers-list> inside <r-cart-bumpers>.
+{%- endcomment -%}
+
+{%- liquid
+  assign limit = section.settings.max_products | default: 10
+-%}
+
+{%- if recommendations.products_count > 0 -%}
+  {%- for product in recommendations.products limit: limit -%}
+    {%- assign variant = product.selected_or_first_available_variant -%}
+    {%- if variant.available -%}
+      <li
+        class="r-cart-bumpers__item"
+        data-r-bumpers-item
+        data-product-id="{{ product.id }}"
+      >
+        {% render 'cart-bumpers-card', product: product, variant: variant %}
+      </li>
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Cart recommendations",
+  "settings": [
+    {
+      "type": "range",
+      "id": "max_products",
+      "min": 2,
+      "max": 10,
+      "step": 1,
+      "default": 10,
+      "label": "Max products"
+    }
+  ]
+}
+{% endschema %}

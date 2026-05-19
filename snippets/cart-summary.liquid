@@ -253,6 +253,12 @@
   </div>
 </div>
 
+{%- # r: trust block above checkout -%}
+{%- if settings.cart_trust_enabled and cart.item_count > 0 -%}
+  {% render 'cart-trust-block' %}
+{%- endif -%}
+{%- # r: end -%}
+
 <div class="cart__ctas">
   <button
     type="submit"

@@ -1,0 +1,140 @@
+{%- doc -%}
+  Cart Bumpers dispatcher — picks one of two modes based on cart state:
+
+  - Below tier1 (free shipping):  "curated" mode renders items from
+    settings.cart_bumpers_collection priced ≤ delta + buffer. Goal is to
+    bridge the gap to free shipping.
+  - At/above tier1:                "recommendations" mode anchors on the
+    most-recently-added cart item and asks the Shopify recommendations
+    API for complementary products. Goal shifts to AOV-growing cross-sells.
+
+  The cart-bumpers-shell snippet renders shared chrome; cart-bumpers-card
+  renders a single item; sections/r-cart-recommendations.liquid is fetched
+  by assets/cart-bumpers.js for the recommendations mode.
+{%- enddoc -%}
+
+{%- liquid
+  assign tier1_cents = settings.cart_tier1_threshold | times: 100
+  assign subtotal = cart.items_subtotal_price
+
+  assign sweet_delta_cents = settings.cart_bumpers_sweet_spot_delta | default: 8 | times: 100
+
+  assign mode = ''
+  assign delta = 0
+  if subtotal < tier1_cents
+    assign delta = tier1_cents | minus: subtotal
+    if delta <= sweet_delta_cents
+      assign mode = 'curated'
+    elsif cart.items.size > 0
+      assign mode = 'recommendations'
+    endif
+  elsif cart.items.size > 0
+    assign mode = 'recommendations'
+  endif
+
+  assign batch_size = settings.cart_bumpers_batch_size | default: 3
+  assign max_items = settings.cart_bumpers_max_items | default: 10
+  if max_items > 10
+    assign max_items = 10
+  endif
+
+  comment
+    Pre-flight for curated mode: count qualifying products so we don't
+    render an empty shell. Recommendations mode mounts the shell
+    regardless — the JS hides it on empty / error.
+  endcomment
+  assign qualifies = 0
+  if mode == 'curated' and settings.cart_bumpers_collection != blank
+    assign collection = settings.cart_bumpers_collection
+    assign buffer = 500
+    assign max_price = delta | plus: buffer
+    for product in collection.products
+      assign variant = product.selected_or_first_available_variant
+      if variant.available and variant.price <= max_price
+        assign qualifies = qualifies | plus: 1
+        if qualifies >= max_items
+          break
+        endif
+      endif
+    endfor
+  endif
+
+  comment
+    If curated mode was chosen but nothing qualifies, fall through to
+    recommendations so the shopper still sees something.
+  endcomment
+  if mode == 'curated' and qualifies == 0 and cart.items.size > 0
+    assign mode = 'recommendations'
+  endif
+-%}
+
+{%- if mode == 'curated' and qualifies > 0 -%}
+  <script src="{{ 'cart-quick-add.js' | asset_url }}" type="module" fetchpriority="low"></script>
+  <script src="{{ 'cart-bumpers.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+  <r-cart-bumpers
+    class="r-cart-bumpers"
+    data-mode="curated"
+    data-batch-size="{{ batch_size }}"
+  >
+    {% render 'cart-bumpers-shell',
+      mode: 'curated',
+      heading: settings.cart_bumpers_heading,
+      collection: collection,
+      max_price: max_price,
+      max_items: max_items,
+      batch_size: batch_size
+    %}
+  </r-cart-bumpers>
+
+{%- elsif mode == 'recommendations' -%}
+  {%- liquid
+    # Build the anchor queue: cart product IDs in reverse order (most recent
+    # added first), deduped, free-gift lines skipped. JS pulls from the front
+    # and fetches the next anchor when the current one's recs are exhausted.
+    assign reversed_items = cart.items | reverse
+    assign anchor_ids = ''
+    assign seen_ids = ''
+    for item in reversed_items
+      if item.properties._free_gift == 'true'
+        continue
+      endif
+      assign pid_str = item.product.id | append: ''
+      assign needle = ',' | append: pid_str | append: ','
+      assign haystack = ',' | append: seen_ids | append: ','
+      unless haystack contains needle
+        if anchor_ids == ''
+          assign anchor_ids = pid_str
+          assign seen_ids = pid_str
+        else
+          assign anchor_ids = anchor_ids | append: ',' | append: pid_str
+          assign seen_ids = seen_ids | append: ',' | append: pid_str
+        endif
+      endunless
+    endfor
+  -%}
+
+  {%- if anchor_ids != '' -%}
+    <script src="{{ 'cart-quick-add.js' | asset_url }}" type="module" fetchpriority="low"></script>
+    <script src="{{ 'cart-bumpers.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+    {%- # r: start hidden; cart-bumpers.js reveals once items confirmed -%}
+    <r-cart-bumpers
+      class="r-cart-bumpers"
+      data-mode="recommendations"
+      data-batch-size="{{ batch_size }}"
+      data-anchor-queue="{{ anchor_ids }}"
+      data-recs-url="{{ routes.product_recommendations_url }}?limit={{ max_items }}"
+      data-section-id="r-cart-recommendations"
+      data-intent="complementary"
+      data-skip-subtree-update
+      hidden
+    >
+      {% render 'cart-bumpers-shell',
+        mode: 'recommendations',
+        heading: settings.cart_bumpers_recs_heading,
+        batch_size: batch_size
+      %}
+    </r-cart-bumpers>
+  {%- endif -%}
+{%- endif -%}

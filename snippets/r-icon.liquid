@@ -1,0 +1,27 @@
+{%- doc -%}
+  Renders a Rocky icon by name. SVG sources live in `assets/r-icon-<name>.svg`
+  and are inlined via Shopify's `inline_asset_content` filter so they can be
+  themed with `currentColor`.
+
+  Usage:
+    {% render 'r-icon', name: 'truck' %}
+    {% render 'r-icon', name: 'gift', class: 'r-some-component__icon' %}
+
+  Params:
+    name  — required. The icon's short name; matches `assets/r-icon-<name>.svg`.
+    class — optional. Extra class names appended to the wrapper <span>.
+{%- enddoc -%}
+{%- liquid
+  if name == blank
+    echo ''
+  else
+    assign asset = 'r-icon-' | append: name | append: '.svg'
+    assign wrapper_class = 'r-icon r-icon--' | append: name
+    if class != blank
+      assign wrapper_class = wrapper_class | append: ' ' | append: class
+    endif
+  endif
+-%}
+{%- if name != blank -%}
+<span class="{{ wrapper_class }}" aria-hidden="true">{{- asset | inline_asset_content -}}</span>
+{%- endif -%}

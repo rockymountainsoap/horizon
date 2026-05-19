@@ -1,0 +1,28 @@
+{%- doc -%}
+  Renders a single cart-bumper card. Shared by curated mode (Liquid loop in
+  cart-bumpers-shell.liquid) and recommendations mode (sections/r-cart-recommendations.liquid).
+
+  @param {object} product
+  @param {object} variant
+{%- enddoc -%}
+
+<a href="{{ product.url }}" class="r-cart-bumpers__media">
+  {%- if variant.featured_image != blank -%}
+    {{ variant.featured_image | image_url: width: 160 | image_tag: class: 'r-cart-bumpers__image', alt: variant.featured_image.alt | default: product.title }}
+  {%- elsif product.featured_media != blank -%}
+    {{ product.featured_media.preview_image | image_url: width: 160 | image_tag: class: 'r-cart-bumpers__image', alt: product.featured_media.preview_image.alt | default: product.title }}
+  {%- endif -%}
+</a>
+<div class="r-cart-bumpers__copy">
+  <a href="{{ product.url }}" class="r-cart-bumpers__title">{{ product.title }}</a>
+  <p class="r-cart-bumpers__price">{{ variant.price | money }}</p>
+</div>
+<r-cart-quick-add data-variant-id="{{ variant.id }}">
+  <button
+    type="button"
+    class="button button--secondary r-cart-bumpers__add"
+    aria-label="{{ 'rocky.cart.bumpers.add_aria' | t: title: product.title }}"
+  >
+    <span class="button-text">{{ 'rocky.cart.bumpers.add_label' | t }}</span>
+  </button>
+</r-cart-quick-add>

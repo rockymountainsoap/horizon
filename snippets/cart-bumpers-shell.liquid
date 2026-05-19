@@ -1,0 +1,281 @@
+{%- doc -%}
+  Common chrome for both bumper modes — heading row, list, Show More
+  button, loading skeleton. In curated mode this snippet iterates the
+  configured collection and renders item rows server-side. In
+  recommendations mode the list starts empty and cart-bumpers.js
+  populates it from a Section Rendering API fetch.
+
+  @param {string} mode               - 'curated' | 'recommendations'
+  @param {string} heading             - merchant override; falls back to locale
+  @param {number} [batch_size]        - initial reveal + step size
+  @param {object} [collection]        - curated mode only
+  @param {number} [max_price]         - curated mode only (cents)
+  @param {number} [max_items]         - curated mode only
+{%- enddoc -%}
+
+{%- liquid
+  assign heading_fallback_key = 'rocky.cart.bumpers.heading_fallback'
+  if mode == 'recommendations'
+    assign heading_fallback_key = 'rocky.cart.bumpers.recs_heading_fallback'
+  endif
+  assign resolved_heading = heading
+  if resolved_heading == blank
+    assign resolved_heading = heading_fallback_key | t
+  endif
+
+  assign resolved_batch = batch_size | default: 3
+-%}
+
+<header class="r-cart-bumpers__header">
+  <h3 class="r-cart-bumpers__heading">{{ resolved_heading }}</h3>
+  <span class="r-cart-bumpers__count" data-r-bumpers-count aria-hidden="true"></span>
+</header>
+
+<ul class="r-cart-bumpers__list" role="list" data-r-bumpers-list>
+  {%- if mode == 'curated' -%}
+    {%- assign rendered = 0 -%}
+    {%- for product in collection.products -%}
+      {%- if rendered >= max_items -%}{%- break -%}{%- endif -%}
+      {%- assign variant = product.selected_or_first_available_variant -%}
+      {%- if variant.available and variant.price <= max_price -%}
+        <li
+          class="r-cart-bumpers__item"
+          data-r-bumpers-item
+          {% if rendered >= resolved_batch %}data-r-hidden="true" hidden{% endif %}
+        >
+          {% render 'cart-bumpers-card', product: product, variant: variant %}
+        </li>
+        {%- assign rendered = rendered | plus: 1 -%}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+</ul>
+
+<button
+  type="button"
+  class="button button--secondary r-cart-bumpers__more"
+  data-r-bumpers-more
+  hidden
+>
+  <span class="button-text">{{ 'rocky.cart.bumpers.show_more' | t }}</span>
+</button>
+
+<div class="r-cart-bumpers__skeleton" data-r-bumpers-skeleton hidden aria-hidden="true">
+  {%- for i in (1..3) -%}
+    <div class="r-cart-bumpers__skeleton-row"></div>
+  {%- endfor -%}
+</div>
+
+{% stylesheet %}
+  /* Override author display:* on hidden bumper elements.
+     The [hidden] UA rule is display:none without !important and is
+     defeated by our display:flex/grid declarations otherwise. */
+  r-cart-bumpers[hidden],
+  .r-cart-bumpers [hidden] {
+    display: none !important;
+  }
+
+  .r-cart-bumpers {
+    --r-cart-bumpers-bg: rgb(var(--color-foreground-rgb) / 0.035);
+    --r-cart-bumpers-divider: rgb(var(--color-foreground-rgb) / 0.08);
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--padding-md);
+    margin-block-start: var(--margin-md);
+    background-color: var(--r-cart-bumpers-bg);
+    border-radius: var(--style-border-radius-popover, 12px);
+  }
+
+  .r-cart-bumpers__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+  }
+
+  .r-cart-bumpers__heading {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-foreground);
+    line-height: 1.3;
+  }
+
+  .r-cart-bumpers__count {
+    font-size: var(--font-size--2xs);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text, 0.6));
+    letter-spacing: 0.02em;
+  }
+
+  .r-cart-bumpers__count:empty {
+    display: none;
+  }
+
+  .r-cart-bumpers__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .r-cart-bumpers__item {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding-block: var(--padding-sm);
+    border-block-end: 1px solid var(--r-cart-bumpers-divider);
+  }
+
+  .r-cart-bumpers__item:last-child {
+    border-block-end: none;
+    padding-block-end: 0;
+  }
+
+  .r-cart-bumpers__item:first-child {
+    padding-block-start: 0;
+  }
+
+  .r-cart-bumpers__media {
+    display: block;
+    width: 64px;
+    height: 64px;
+    overflow: hidden;
+    background-color: rgb(var(--color-foreground-rgb) / 0.06);
+    border-radius: var(--style-border-radius-buttons-primary, 8px);
+  }
+
+  .r-cart-bumpers__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .r-cart-bumpers__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .r-cart-bumpers__title {
+    font-size: var(--font-size--sm);
+    color: var(--color-foreground);
+    text-decoration: none;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .r-cart-bumpers__title:hover {
+    text-decoration: underline;
+  }
+
+  .r-cart-bumpers__price {
+    margin: 0;
+    font-size: var(--font-size--xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-foreground);
+  }
+
+  .r-cart-bumpers__add {
+    min-height: var(--minimum-touch-target);
+    padding-inline: var(--padding-md);
+    font-size: var(--font-size--xs);
+    border-radius: 999px;
+    width: auto;
+  }
+
+  .r-cart-bumpers__more {
+    width: 100%;
+    min-height: var(--minimum-touch-target);
+    margin-block-start: var(--margin-2xs);
+    font-size: var(--font-size--xs);
+    letter-spacing: 0.02em;
+  }
+
+  r-cart-quick-add {
+    display: contents;
+  }
+
+  /* reveal animation for newly shown items */
+  .r-cart-bumpers__item--enter {
+    animation: r-cart-bumpers-in 280ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  @keyframes r-cart-bumpers-in {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  /* dismiss animation when an item is added to the cart — matches the
+     cart-items__table-row.removing pattern */
+  .r-cart-bumpers__item.removing {
+    overflow: hidden;
+    pointer-events: none;
+    animation: r-cart-bumpers-remove calc(var(--animation-speed) * 2) var(--animation-easing) forwards;
+    animation-delay: var(--animation-speed);
+  }
+
+  @keyframes r-cart-bumpers-remove {
+    0% {
+      height: var(--bumper-row-height);
+    }
+    100% {
+      opacity: 0;
+      height: 0;
+      padding-block: 0;
+      border-color: transparent;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .r-cart-bumpers__item--enter,
+    .r-cart-bumpers__item.removing {
+      animation: none;
+    }
+  }
+
+  /* skeleton */
+  .r-cart-bumpers__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+  }
+
+  .r-cart-bumpers__skeleton-row {
+    height: 64px;
+    border-radius: var(--style-border-radius-buttons-primary, 8px);
+    background: linear-gradient(
+      90deg,
+      rgb(var(--color-foreground-rgb) / 0.06) 0%,
+      rgb(var(--color-foreground-rgb) / 0.12) 50%,
+      rgb(var(--color-foreground-rgb) / 0.06) 100%
+    );
+    background-size: 200% 100%;
+    animation: r-cart-bumpers-shimmer 1400ms ease-in-out infinite;
+  }
+
+  @keyframes r-cart-bumpers-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .r-cart-bumpers__skeleton-row {
+      animation: none;
+    }
+  }
+{% endstylesheet %}

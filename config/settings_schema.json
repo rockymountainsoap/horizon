@@ -1822,6 +1822,223 @@
         "step": 1,
         "unit": "px",
         "default": 0
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_cart_incentive_engine"
+      },
+      {
+        "type": "checkbox",
+        "id": "cart_incentive_enabled",
+        "label": "t:settings.r_cart_incentive_enabled",
+        "default": true
+      },
+      {
+        "type": "number",
+        "id": "cart_tier1_threshold",
+        "label": "t:settings.r_cart_tier1_threshold",
+        "info": "t:settings.r_cart_tier1_threshold_info",
+        "default": 60,
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "number",
+        "id": "cart_tier2_threshold",
+        "label": "t:settings.r_cart_tier2_threshold",
+        "info": "t:settings.r_cart_tier2_threshold_info",
+        "default": 100,
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_free_gift_variant_id",
+        "label": "t:settings.r_cart_free_gift_variant_id",
+        "info": "t:settings.r_cart_free_gift_variant_id_info"
+      },
+      {
+        "type": "text",
+        "id": "cart_tier1_label_under",
+        "label": "t:settings.r_cart_tier1_label_under",
+        "info": "t:settings.r_cart_label_amount_info",
+        "default": "Add {{ amount }} for Free Shipping",
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_tier1_label_unlocked",
+        "label": "t:settings.r_cart_tier1_label_unlocked",
+        "info": "t:settings.r_cart_label_amount_info",
+        "default": "You've unlocked Free Shipping! Add {{ amount }} for a Free Gift",
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_tier1_label_complete",
+        "label": "t:settings.r_cart_tier1_label_complete",
+        "info": "t:settings.r_cart_tier1_label_complete_info",
+        "default": "Free Shipping unlocked",
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_tier2_label_unlocked",
+        "label": "t:settings.r_cart_tier2_label_unlocked",
+        "default": "Free Shipping & Free Gift unlocked",
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "color_scheme",
+        "id": "cart_progress_color_scheme",
+        "label": "t:settings.r_cart_progress_color_scheme",
+        "default": "scheme-1",
+        "visible_if": "{{ settings.cart_incentive_enabled == true }}"
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_cart_bumpers"
+      },
+      {
+        "type": "checkbox",
+        "id": "cart_bumpers_enabled",
+        "label": "t:settings.r_cart_bumpers_enabled",
+        "default": true
+      },
+      {
+        "type": "collection",
+        "id": "cart_bumpers_collection",
+        "label": "t:settings.r_cart_bumpers_collection",
+        "info": "t:settings.r_cart_bumpers_collection_info"
+      },
+      {
+        "type": "number",
+        "id": "cart_bumpers_sweet_spot_delta",
+        "label": "t:settings.r_cart_bumpers_sweet_spot_delta",
+        "info": "t:settings.r_cart_bumpers_sweet_spot_delta_info",
+        "default": 8,
+        "visible_if": "{{ settings.cart_bumpers_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_bumpers_heading",
+        "label": "t:settings.r_cart_bumpers_heading",
+        "info": "t:settings.r_cart_bumpers_heading_info",
+        "default": "You're so close! Add one of these to ship for free.",
+        "visible_if": "{{ settings.cart_bumpers_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_bumpers_recs_heading",
+        "label": "t:settings.r_cart_bumpers_recs_heading",
+        "info": "t:settings.r_cart_bumpers_recs_heading_info",
+        "default": "You might also like",
+        "visible_if": "{{ settings.cart_bumpers_enabled == true }}"
+      },
+      {
+        "type": "number",
+        "id": "cart_bumpers_max_items",
+        "label": "t:settings.r_cart_bumpers_max_items",
+        "info": "t:settings.r_cart_bumpers_max_items_info",
+        "default": 10,
+        "visible_if": "{{ settings.cart_bumpers_enabled == true }}"
+      },
+      {
+        "type": "number",
+        "id": "cart_bumpers_batch_size",
+        "label": "t:settings.r_cart_bumpers_batch_size",
+        "info": "t:settings.r_cart_bumpers_batch_size_info",
+        "default": 3,
+        "visible_if": "{{ settings.cart_bumpers_enabled == true }}"
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_cart_trust"
+      },
+      {
+        "type": "checkbox",
+        "id": "cart_trust_enabled",
+        "label": "t:settings.r_cart_trust_enabled",
+        "default": true
+      },
+      {
+        "type": "text",
+        "id": "cart_trust_satisfaction_label",
+        "label": "t:settings.r_cart_trust_satisfaction_label",
+        "default": "100% Satisfaction",
+        "visible_if": "{{ settings.cart_trust_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_trust_returns_label",
+        "label": "t:settings.r_cart_trust_returns_label",
+        "default": "Easy 30-Day Returns",
+        "visible_if": "{{ settings.cart_trust_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_trust_rating_value",
+        "label": "t:settings.r_cart_trust_rating_value",
+        "default": "4.9",
+        "visible_if": "{{ settings.cart_trust_enabled == true }}"
+      },
+      {
+        "type": "text",
+        "id": "cart_trust_rating_count_label",
+        "label": "t:settings.r_cart_trust_rating_count_label",
+        "default": "Loved by 50,000+ Customers",
+        "visible_if": "{{ settings.cart_trust_enabled == true }}"
+      },
+      {
+        "type": "url",
+        "id": "cart_trust_reviews_url",
+        "label": "t:settings.r_cart_trust_reviews_url",
+        "info": "t:settings.r_cart_trust_reviews_url_info",
+        "visible_if": "{{ settings.cart_trust_enabled == true }}"
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_cart_empty_state"
+      },
+      {
+        "type": "text",
+        "id": "cart_empty_heading",
+        "label": "t:settings.r_cart_empty_heading",
+        "default": "Start Here"
+      },
+      {
+        "type": "text",
+        "id": "cart_empty_subheading",
+        "label": "t:settings.r_cart_empty_subheading",
+        "default": "Your next favourite thing is one step away."
+      },
+      {
+        "type": "collection",
+        "id": "cart_empty_collection",
+        "label": "t:settings.r_cart_empty_collection",
+        "info": "t:settings.r_cart_empty_collection_info"
+      },
+      {
+        "type": "number",
+        "id": "cart_empty_show_count",
+        "label": "t:settings.r_cart_empty_show_count",
+        "default": 4
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_cart_low_stock"
+      },
+      {
+        "type": "checkbox",
+        "id": "cart_low_stock_enabled",
+        "label": "t:settings.r_cart_low_stock_enabled",
+        "default": true
+      },
+      {
+        "type": "number",
+        "id": "cart_low_stock_threshold",
+        "label": "t:settings.r_cart_low_stock_threshold",
+        "info": "t:settings.r_cart_low_stock_threshold_info",
+        "default": 5,
+        "visible_if": "{{ settings.cart_low_stock_enabled == true }}"
       }
     ]
   },

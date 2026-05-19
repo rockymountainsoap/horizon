@@ -76,6 +76,25 @@
   border: 0;
 }
 
+/* Rocky icon wrapper — rendered by snippets/r-icon.liquid around an inlined SVG.
+   Size and color flow from the consumer via `inline-size` / `block-size` and
+   `color` (the inner SVG uses currentColor). Mirrors Horizon's .svg-wrapper. */
+.r-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1em;
+  block-size: 1em;
+  flex: 0 0 auto;
+  color: currentcolor;
+  pointer-events: none;
+}
+
+.r-icon > svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
 /* =============================================================================
    Rocky Colour Scheme Extensions
    Hang Rocky-specific tokens off the same .color-scheme-* classes that
@@ -95,6 +114,7 @@
   --r-color-journal-bg:    ;  /* warm off-white editorial background */
   --r-color-brand-accent:  ;  /* Canmore tan / brand warm accent     */
   --r-color-brand-primary: ;  /* primary brand ink colour            */
+  --r-cart-reward-accent: oklch(70% 0.14 75);   /* warm gold — cart progress bar reward markers */
 }
 
 /* --- scheme-2: Rocky Dark (hero / inverse / feature) ----------------------- */
@@ -103,6 +123,7 @@
   --r-color-journal-bg:    ;
   --r-color-brand-accent:  ;
   --r-color-brand-primary: ;
+  --r-cart-reward-accent: oklch(82% 0.13 75);   /* lifted gold for contrast on dark surface */
 }
 
 /* --- scheme-3: Rocky Journal (editorial / natural) ------------------------- */
@@ -111,6 +132,7 @@
   --r-color-journal-bg:    ;
   --r-color-brand-accent:  ;
   --r-color-brand-primary: ;
+  --r-cart-reward-accent: oklch(68% 0.15 65);   /* deeper amber for the editorial palette */
 }
 
 /* =============================================================================

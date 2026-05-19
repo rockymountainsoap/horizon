@@ -1,0 +1,424 @@
+{%- doc -%}
+  Renders the tiered rewards progress bar at the top of the cart drawer.
+
+  Liquid owns all math (fill width, milestone positions, message copy).
+  The custom element `<r-cart-progress-bar>` (assets/cart-progress-bar.js)
+  only handles transient effects between morph passes:
+    - subtle shimmer on subtotal growth
+    - tier-crossing celebration when a milestone flips from locked → unlocked
+{%- enddoc -%}
+
+{%- liquid
+  assign tier1 = settings.cart_tier1_threshold | times: 100
+  assign tier2 = settings.cart_tier2_threshold | times: 100
+  assign subtotal = cart.items_subtotal_price
+
+  assign tier2_active = false
+  if settings.cart_free_gift_variant_id != blank and tier2 > tier1
+    assign tier2_active = true
+  endif
+
+  assign tier1_unlocked = false
+  assign tier2_unlocked = false
+  if subtotal >= tier1
+    assign tier1_unlocked = true
+  endif
+  if tier2_active and subtotal >= tier2
+    assign tier2_unlocked = true
+  endif
+
+  assign goal = tier1
+  if tier2_active
+    assign goal = tier2
+  endif
+  assign progress_pct = 0
+  if goal > 0
+    assign progress_pct = subtotal | times: 1000 | divided_by: goal | divided_by: 10.0
+  endif
+  if progress_pct > 100
+    assign progress_pct = 100
+  endif
+
+  if tier1_unlocked == false
+    assign delta_cents = tier1 | minus: subtotal
+    assign delta_money = delta_cents | money_without_trailing_zeros
+    assign override_message = settings.cart_tier1_label_under
+    assign default_key = 'rocky.cart.progress.tier1_under'
+  elsif tier2_active and tier2_unlocked == false
+    assign delta_cents = tier2 | minus: subtotal
+    assign delta_money = delta_cents | money_without_trailing_zeros
+    assign override_message = settings.cart_tier1_label_unlocked
+    assign default_key = 'rocky.cart.progress.tier1_unlocked'
+  elsif tier2_active == false
+    assign delta_money = 0 | money_without_trailing_zeros
+    assign override_message = settings.cart_tier1_label_complete
+    assign default_key = 'rocky.cart.progress.tier1_complete'
+  else
+    assign delta_money = 0 | money_without_trailing_zeros
+    assign override_message = settings.cart_tier2_label_unlocked
+    assign default_key = 'rocky.cart.progress.tier2_unlocked'
+  endif
+
+  if override_message != blank
+    assign message = override_message | replace: '{{ amount }}', delta_money | replace: '{{amount}}', delta_money
+  else
+    assign message = default_key | t: amount: delta_money
+  endif
+
+  assign tier1_pct = 100
+  if tier2_active and tier2 > 0
+    assign tier1_pct = tier1 | times: 1000 | divided_by: tier2 | divided_by: 10.0
+  endif
+
+  assign tier1_amount = tier1 | money_without_trailing_zeros
+  assign tier2_amount = tier2 | money_without_trailing_zeros
+
+  assign earned_count = 0
+  if tier1_unlocked
+    assign earned_count = earned_count | plus: 1
+  endif
+  if tier2_unlocked
+    assign earned_count = earned_count | plus: 1
+  endif
+-%}
+
+<script src="{{ 'cart-progress-bar.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+<r-cart-progress-bar
+  class="r-cart-progress color-{{ settings.cart_progress_color_scheme }}{% if tier1_unlocked %} r-cart-progress--tier1{% endif %}{% if tier2_unlocked %} r-cart-progress--tier2{% endif %}"
+  data-tier1="{{ tier1 }}"
+  data-tier2="{{ tier2 }}"
+  data-tier2-active="{{ tier2_active }}"
+  data-tier1-unlocked="{{ tier1_unlocked }}"
+  data-tier2-unlocked="{{ tier2_unlocked }}"
+  data-subtotal="{{ subtotal }}"
+  style="--r-progress: {{ progress_pct }}%; --r-tier1-pos: {{ tier1_pct }}%;"
+>
+  <div class="r-cart-progress__copy">
+    <p class="r-cart-progress__message" role="status" aria-live="polite">
+      {{ message }}
+    </p>
+    {%- if tier2_active and earned_count > 0 -%}
+      <p class="r-cart-progress__earned" aria-hidden="true">
+        {%- if tier1_unlocked -%}
+          <span class="r-cart-progress__earned-chip">
+            {%- render 'r-icon', name: 'check' -%}
+            {{ 'rocky.cart.progress.earned_shipping' | t }}
+          </span>
+        {%- endif -%}
+        {%- if tier2_unlocked -%}
+          <span class="r-cart-progress__earned-chip">
+            {%- render 'r-icon', name: 'check' -%}
+            {{ 'rocky.cart.progress.earned_gift' | t }}
+          </span>
+        {%- endif -%}
+      </p>
+    {%- endif -%}
+  </div>
+
+  <div class="r-cart-progress__bar">
+    <div
+      class="r-cart-progress__track"
+      role="progressbar"
+      aria-label="{{ 'rocky.cart.progress.aria_label' | t }}"
+      aria-valuemin="0"
+      aria-valuemax="{{ goal }}"
+      aria-valuenow="{{ subtotal }}"
+      aria-valuetext="{{ message | strip_html | escape }}"
+    >
+      <span class="r-cart-progress__fill" aria-hidden="true"></span>
+    </div>
+
+    <div class="r-cart-progress__markers" aria-hidden="true">
+      {%- if tier2_active -%}
+        <span
+          class="r-cart-progress__marker r-cart-progress__marker--mid{% if tier1_unlocked %} is-reached{% endif %}"
+          data-tier="1"
+          style="left: {{ tier1_pct }}%;"
+        ></span>
+      {%- endif -%}
+      <span
+        class="r-cart-progress__marker r-cart-progress__marker--end{% if tier2_active %}{% if tier2_unlocked %} is-reached{% endif %}{% else %}{% if tier1_unlocked %} is-reached{% endif %}{% endif %}"
+        data-tier="{% if tier2_active %}2{% else %}1{% endif %}"
+      ></span>
+    </div>
+
+    <ul class="r-cart-progress__chips" aria-hidden="true">
+      {%- if tier2_active -%}
+        <li
+          class="r-cart-progress__chip r-cart-progress__chip--mid{% if tier1_unlocked %} is-reached{% endif %}"
+          style="left: {{ tier1_pct }}%;"
+        >
+          {%- render 'r-icon', name: 'truck' -%}
+          <span class="r-cart-progress__chip-amount">{{ tier1_amount }}</span>
+        </li>
+        <li class="r-cart-progress__chip r-cart-progress__chip--end{% if tier2_unlocked %} is-reached{% endif %}">
+          {%- render 'r-icon', name: 'gift' -%}
+          <span class="r-cart-progress__chip-amount">{{ tier2_amount }}</span>
+        </li>
+      {%- else -%}
+        <li class="r-cart-progress__chip r-cart-progress__chip--end{% if tier1_unlocked %} is-reached{% endif %}">
+          {%- render 'r-icon', name: 'truck' -%}
+          <span class="r-cart-progress__chip-amount">{{ tier1_amount }}</span>
+        </li>
+      {%- endif -%}
+    </ul>
+  </div>
+</r-cart-progress-bar>
+
+{% stylesheet %}
+  /* When the progress bar is inside the drawer, flex the parent so the
+     scrollable content area shrinks to fit and our bar sits naturally
+     between the sticky header and the scroll region. */
+  .cart-drawer cart-items-component:has(.r-cart-progress) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .cart-drawer cart-items-component:has(.r-cart-progress) > .cart-drawer__content {
+    height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .r-cart-progress {
+    --r-cart-progress-track-height: 6px;
+    --r-cart-progress-marker-size: 14px;
+    --r-cart-progress-fill-color: var(--color-foreground);
+    --r-cart-progress-milestone-color: var(--r-cart-reward-accent, var(--color-foreground));
+    --r-cart-progress-track-bg: rgb(var(--color-foreground-rgb) / var(--opacity-10-25, 0.18));
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm, var(--gap-xs));
+    padding: var(--padding-md) var(--cart-drawer-padding, var(--padding-xl)) var(--padding-lg, var(--padding-md));
+    background-color: var(--color-background);
+    border-block-end: 1px solid var(--color-border);
+    flex: 0 0 auto;
+  }
+
+  @media screen and (min-width: 750px) {
+    .r-cart-progress {
+      padding-inline: var(--cart-drawer-padding-desktop, var(--padding-2xl));
+    }
+  }
+
+  .r-cart-progress--tier2 {
+    --r-cart-progress-fill-color: var(--r-cart-progress-milestone-color);
+  }
+
+  /* --- copy block ----------------------------------------------------------- */
+  .r-cart-progress__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .r-cart-progress__message {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    line-height: 1.35;
+    color: var(--color-foreground);
+    font-weight: var(--font-weight--medium, 500);
+  }
+
+  .r-cart-progress__earned {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-2xs, 6px);
+    font-size: var(--font-size--xs);
+    line-height: 1.2;
+    color: rgb(var(--color-foreground-rgb) / 0.7);
+  }
+
+  .r-cart-progress__earned-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .r-cart-progress__earned-chip .r-icon {
+    inline-size: 12px;
+    block-size: 12px;
+    color: var(--r-cart-progress-milestone-color);
+  }
+
+  /* --- bar wrapper + track -------------------------------------------------- */
+  .r-cart-progress__bar {
+    position: relative;
+    padding-block-start: 4px;
+  }
+
+  .r-cart-progress__track {
+    position: relative;
+    block-size: var(--r-cart-progress-track-height);
+    inline-size: 100%;
+    background-color: var(--r-cart-progress-track-bg);
+    border-radius: calc(var(--r-cart-progress-track-height) / 2);
+    overflow: hidden;
+  }
+
+  .r-cart-progress__fill {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: var(--r-progress, 0%);
+    background-color: var(--r-cart-progress-fill-color);
+    border-radius: inherit;
+    transition: inline-size 600ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      background-color 300ms ease;
+  }
+
+  /* --- milestone markers (overlay on the track, not clipped) --------------- */
+  .r-cart-progress__markers {
+    position: absolute;
+    inset-block-start: 4px;
+    inset-inline: 0;
+    block-size: var(--r-cart-progress-track-height);
+    pointer-events: none;
+  }
+
+  .r-cart-progress__marker {
+    position: absolute;
+    inset-block-start: 50%;
+    inline-size: var(--r-cart-progress-marker-size);
+    block-size: var(--r-cart-progress-marker-size);
+    transform: translate(-50%, -50%);
+    background-color: var(--color-background);
+    border: 2px solid var(--r-cart-progress-milestone-color);
+    border-radius: 50%;
+    box-sizing: border-box;
+    transition: background-color 300ms ease, transform 300ms ease;
+  }
+
+  .r-cart-progress__marker--end {
+    inset-inline-end: 0;
+    left: auto;
+    transform: translate(50%, -50%);
+  }
+
+  .r-cart-progress__marker.is-reached {
+    background-color: var(--r-cart-progress-milestone-color);
+  }
+
+  /* --- chips below the bar -------------------------------------------------- */
+  .r-cart-progress__chips {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    block-size: 1.2em;
+    margin-block-start: 10px;
+  }
+
+  .r-cart-progress__chip {
+    position: absolute;
+    inset-block-start: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size--xs);
+    line-height: 1.2;
+    color: rgb(var(--color-foreground-rgb) / 0.7);
+    white-space: nowrap;
+    transition: color 300ms ease;
+  }
+
+  .r-cart-progress__chip--mid {
+    transform: translateX(-50%);
+  }
+
+  .r-cart-progress__chip--end {
+    inset-inline-end: 0;
+    transform: none;
+  }
+
+  .r-cart-progress__chip .r-icon {
+    inline-size: 14px;
+    block-size: 14px;
+    color: var(--r-cart-progress-milestone-color);
+  }
+
+  .r-cart-progress__chip.is-reached {
+    color: var(--color-foreground);
+    font-weight: var(--font-weight--medium, 500);
+  }
+
+  .r-cart-progress__chip.is-reached .r-cart-progress__chip-amount {
+    text-decoration: line-through;
+    text-decoration-color: rgb(var(--color-foreground-rgb) / 0.5);
+    text-decoration-thickness: 1px;
+  }
+
+  /* --- tier-crossing celebration ------------------------------------------- */
+  .r-cart-progress[data-celebrate="1"] .r-cart-progress__marker--mid,
+  .r-cart-progress[data-celebrate="2"] .r-cart-progress__marker--end {
+    animation: r-cart-progress-celebrate 900ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .r-cart-progress[data-celebrate="1"] .r-cart-progress__chip--mid {
+    animation: r-cart-progress-chip-pop-mid 900ms ease;
+  }
+
+  .r-cart-progress[data-celebrate="2"] .r-cart-progress__chip--end {
+    animation: r-cart-progress-chip-pop-end 900ms ease;
+  }
+
+  @keyframes r-cart-progress-celebrate {
+    0%   { transform: translate(-50%, -50%) scale(1);   box-shadow: 0 0 0 0 var(--r-cart-progress-milestone-color); }
+    35%  { transform: translate(-50%, -50%) scale(1.6); box-shadow: 0 0 0 6px rgb(var(--color-foreground-rgb) / 0); }
+    100% { transform: translate(-50%, -50%) scale(1);   box-shadow: 0 0 0 0 rgb(var(--color-foreground-rgb) / 0); }
+  }
+
+  /* End marker has a different base transform; override just for it. */
+  .r-cart-progress[data-celebrate="2"] .r-cart-progress__marker--end {
+    animation-name: r-cart-progress-celebrate-end;
+  }
+
+  @keyframes r-cart-progress-celebrate-end {
+    0%   { transform: translate(50%, -50%) scale(1);   box-shadow: 0 0 0 0 var(--r-cart-progress-milestone-color); }
+    35%  { transform: translate(50%, -50%) scale(1.6); box-shadow: 0 0 0 6px rgb(var(--color-foreground-rgb) / 0); }
+    100% { transform: translate(50%, -50%) scale(1);   box-shadow: 0 0 0 0 rgb(var(--color-foreground-rgb) / 0); }
+  }
+
+  @keyframes r-cart-progress-chip-pop-mid {
+    0%   { transform: translateX(-50%) translateY(0); }
+    40%  { transform: translateX(-50%) translateY(-3px); }
+    100% { transform: translateX(-50%) translateY(0); }
+  }
+
+  @keyframes r-cart-progress-chip-pop-end {
+    0%   { transform: translateY(0); }
+    40%  { transform: translateY(-3px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* --- shimmer on simple subtotal growth (no tier change) ------------------ */
+  .r-cart-progress--shimmer .r-cart-progress__fill {
+    animation: r-cart-progress-shimmer 800ms ease;
+  }
+
+  @keyframes r-cart-progress-shimmer {
+    0%   { filter: brightness(1); }
+    50%  { filter: brightness(1.4); }
+    100% { filter: brightness(1); }
+  }
+
+  /* --- reduced motion ------------------------------------------------------- */
+  @media (prefers-reduced-motion: reduce) {
+    .r-cart-progress__fill,
+    .r-cart-progress__marker,
+    .r-cart-progress__chip {
+      transition: none;
+    }
+    .r-cart-progress--shimmer .r-cart-progress__fill,
+    .r-cart-progress[data-celebrate] .r-cart-progress__marker--mid,
+    .r-cart-progress[data-celebrate] .r-cart-progress__marker--end,
+    .r-cart-progress[data-celebrate] .r-cart-progress__chip--mid,
+    .r-cart-progress[data-celebrate] .r-cart-progress__chip--end {
+      animation: none;
+    }
+  }
+{% endstylesheet %}

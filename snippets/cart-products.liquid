@@ -44,6 +44,10 @@
   {% endif %}
 >
   {% if cart.empty? or force_empty %}
+    {%- # r: curated empty state replacing default empty cart -%}
+    {% render 'cart-empty-state' %}
+    {%- # r: end -%}
+
     {%- if shop.customer_accounts_enabled and customer == null -%}
       <p>
         {{ 'actions.log_in_html' | t: link: routes.account_login_url }}
@@ -129,12 +133,19 @@
 
           <tbody role="rowgroup">
             {% for item in cart.items %}
+              {%- # r: detect free-gift line item -%}
+              {%- assign r_is_free_gift = false -%}
+              {%- if item.properties._free_gift == 'true' -%}
+                {%- assign r_is_free_gift = true -%}
+              {%- endif -%}
+              {%- # r: end -%}
               <tr
                 role="row"
-                class="cart-items__table-row{% if item.parent_relationship.parent != null %} cart-items__nested-line{% endif %}{% unless item.unit_price_measurement %} cart-items__table-row--full-width-variants{% endunless %}"
+                class="cart-items__table-row{% if item.parent_relationship.parent != null %} cart-items__nested-line{% endif %}{% unless item.unit_price_measurement %} cart-items__table-row--full-width-variants{% endunless %}{% if r_is_free_gift %} cart-items__table-row--free-gift{% endif %}"
                 ref="cartItemRows[]"
                 data-parent-key="{{ item.parent_relationship.parent.key }}"
                 data-key="{{ item.key }}"
+                {% if r_is_free_gift %}data-r-free-gift="true"{% endif %}
               >
                 <td
                   class="cart-items__media"
@@ -184,6 +195,27 @@
                         {{- item.product.title -}}
                       </a>
                     </p>
+
+                    {%- # r: low-stock badge -%}
+                    {%- if settings.cart_low_stock_enabled and r_is_free_gift == false -%}
+                      {%- liquid
+                        assign r_show_low_stock = false
+                        assign r_inventory_managed = false
+                        if item.variant.inventory_management != blank and item.variant.inventory_management != 'not_managed'
+                          assign r_inventory_managed = true
+                        endif
+                        if r_inventory_managed and item.variant.inventory_policy != 'continue' and item.variant.inventory_quantity > 0 and item.variant.inventory_quantity <= settings.cart_low_stock_threshold
+                          assign r_show_low_stock = true
+                        endif
+                      -%}
+                      {%- if r_show_low_stock -%}
+                        <p class="r-cart-low-stock" data-qty="{{ item.variant.inventory_quantity }}">
+                          {{ 'rocky.cart.low_stock.badge' | t: count: item.variant.inventory_quantity }}
+                        </p>
+                      {%- endif -%}
+                    {%- endif -%}
+                    {%- # r: end -%}
+
                     {% if item.product.vendor and block_settings.vendor %}
                       <p>
                         {{ item.product.vendor }}
@@ -277,6 +309,13 @@
                   </div>
 
                   <div class="cart-items__unit-price-wrapper">
+                    {%- # r: free-gift replaces price -%}
+                    {%- if r_is_free_gift -%}
+                      <span class="r-cart-free-gift-badge" aria-label="{{ 'rocky.cart.free_gift.aria' | t }}">
+                        {{ 'rocky.cart.free_gift.badge' | t }}
+                      </span>
+                    {%- else -%}
+                    {%- # r: end -%}
                     <div>
                       {% if item.original_price != item.final_price %}
                         <span class="visually-hidden">{{ 'content.price_sale' | t }}</span>
@@ -304,6 +343,9 @@
                         {% endif %}
                       {% endif %}
                     </div>
+                    {%- # r: end free-gift branch -%}
+                    {%- endif -%}
+                    {%- # r: end -%}
                   </div>
                 </td>
                 <td
@@ -316,6 +358,11 @@
                     | default: true, allow_false: true
                   %}
                   <div class="cart-items__quantity-controls">
+                    {%- # r: hide quantity controls + remove for free gift line -%}
+                    {%- if r_is_free_gift -%}
+                      <span class="r-cart-free-gift-locked" aria-hidden="true">×&nbsp;1</span>
+                    {%- else -%}
+                    {%- # r: end -%}
                     {% render 'volume-pricing-info',
                       variant: item.variant,
                       unique_id: item.index,
@@ -344,6 +391,9 @@
                       {{- 'icon-delete.svg' | inline_asset_content -}}
                       <span class="visually-hidden">{{ 'accessibility.remove' | t }}</span>
                     </button>
+                    {%- # r: end free-gift controls branch -%}
+                    {%- endif -%}
+                    {%- # r: end -%}
                   </div>
                 </td>
                 <td
@@ -390,6 +440,14 @@
             {% endfor %}
           </tbody>
         </table>
+
+        {%- # r: cart bumpers — insulate from cart morphs (Phase 1) -%}
+        {%- if settings.cart_bumpers_enabled -%}
+          <div class="r-cart-bumpers-host" data-skip-subtree-update>
+            {% render 'cart-bumpers' %}
+          </div>
+        {%- endif -%}
+        {%- # r: end -%}
       </div>
     </form>
   {%- endif -%}
@@ -941,5 +999,49 @@
       filter: none;
       opacity: 1;
     }
+  }
+
+  /* r: low-stock badge */
+  .r-cart-low-stock {
+    --r-color-cart-low-stock: oklch(74% 0.13 75);
+
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    margin-block-start: var(--margin-3xs, 4px);
+    padding: 2px 8px;
+    font-size: var(--font-size--2xs);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.4;
+    color: var(--r-color-cart-low-stock);
+    background-color: rgb(from var(--r-color-cart-low-stock) r g b / 0.12);
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  /* r: free gift badge replacing price */
+  .r-cart-free-gift-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    font-size: var(--font-size--xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-foreground);
+    background-color: oklch(74% 0.13 75);
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .r-cart-free-gift-locked {
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text, 0.7));
+    padding-block: var(--padding-2xs);
+  }
+
+  .cart-items__table-row--free-gift {
+    background-color: rgb(from oklch(74% 0.13 75) r g b / 0.05);
+    border-radius: var(--style-border-radius-buttons-primary, 0);
   }
 {% endstylesheet %}

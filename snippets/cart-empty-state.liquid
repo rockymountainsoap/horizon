@@ -1,0 +1,164 @@
+{%- doc -%}
+  Renders the empty cart merchandising block — heading, subheading,
+  and a grid of bestseller products with one-click quick-add buttons.
+{%- enddoc -%}
+
+{%- liquid
+  assign empty_collection = settings.cart_empty_collection
+  assign show_count = settings.cart_empty_show_count | default: 4
+  assign heading = settings.cart_empty_heading
+  if heading == blank
+    assign heading = 'rocky.cart.empty.heading_fallback' | t
+  endif
+  assign subheading = settings.cart_empty_subheading
+  if subheading == blank
+    assign subheading = 'rocky.cart.empty.subheading_fallback' | t
+  endif
+-%}
+
+<script src="{{ 'cart-quick-add.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+<div class="r-cart-empty">
+  <div class="r-cart-empty__intro">
+    <h3 class="r-cart-empty__heading">{{ heading }}</h3>
+    {%- if subheading != blank -%}
+      <p class="r-cart-empty__subheading">{{ subheading }}</p>
+    {%- endif -%}
+  </div>
+
+  {%- if empty_collection != blank and empty_collection.products.size > 0 -%}
+    <ul class="r-cart-empty__grid" role="list">
+      {%- for product in empty_collection.products limit: show_count -%}
+        {%- assign variant = product.selected_or_first_available_variant -%}
+        <li class="r-cart-empty__item">
+          <a href="{{ product.url }}" class="r-cart-empty__media">
+            {%- if variant.featured_image != blank -%}
+              {{ variant.featured_image | image_url: width: 240 | image_tag: class: 'r-cart-empty__image', alt: variant.featured_image.alt | default: product.title }}
+            {%- elsif product.featured_media != blank -%}
+              {{ product.featured_media.preview_image | image_url: width: 240 | image_tag: class: 'r-cart-empty__image', alt: product.featured_media.preview_image.alt | default: product.title }}
+            {%- endif -%}
+          </a>
+          <div class="r-cart-empty__copy">
+            <a href="{{ product.url }}" class="r-cart-empty__title">{{ product.title }}</a>
+            <p class="r-cart-empty__price">{{ variant.price | money }}</p>
+          </div>
+          {%- if variant.available -%}
+            <r-cart-quick-add data-variant-id="{{ variant.id }}">
+              <button
+                type="button"
+                class="button button--secondary r-cart-empty__add"
+                aria-label="{{ 'rocky.cart.empty.add_aria' | t: title: product.title }}"
+              >
+                <span class="button-text">
+                  {{ 'rocky.cart.empty.add_label' | t }}
+                </span>
+              </button>
+            </r-cart-quick-add>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+</div>
+
+{% stylesheet %}
+  .r-cart-empty {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    width: 100%;
+    text-align: center;
+    padding-block: var(--padding-lg);
+  }
+
+  .r-cart-empty__intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-2xs);
+  }
+
+  .r-cart-empty__heading {
+    margin: 0;
+    font-size: var(--font-size--lg);
+    font-family: var(--font-heading--family);
+    font-weight: var(--font-heading--weight);
+    color: var(--color-foreground);
+  }
+
+  .r-cart-empty__subheading {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text, 0.7));
+  }
+
+  .r-cart-empty__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap-md);
+    width: 100%;
+  }
+
+  @media screen and (min-width: 750px) {
+    .r-cart-empty__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .r-cart-empty__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-2xs);
+    text-align: center;
+  }
+
+  .r-cart-empty__media {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background-color: rgb(var(--color-foreground-rgb) / 0.04);
+  }
+
+  .r-cart-empty__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .r-cart-empty__copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-3xs, 4px);
+  }
+
+  .r-cart-empty__title {
+    font-size: var(--font-size--sm);
+    color: var(--color-foreground);
+    text-decoration: none;
+    line-height: 1.2;
+  }
+
+  .r-cart-empty__title:hover {
+    text-decoration: underline;
+  }
+
+  .r-cart-empty__price {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .r-cart-empty__add {
+    width: 100%;
+    min-height: var(--minimum-touch-target);
+    font-size: var(--font-size--xs);
+  }
+
+  r-cart-quick-add {
+    display: contents;
+  }
+{% endstylesheet %}
