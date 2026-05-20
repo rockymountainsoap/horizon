@@ -77,6 +77,7 @@ snippets/variant-filter--filter.liquid merge=ours
 blocks/_product-card.liquid merge=ours
 blocks/product-card.liquid merge=ours
 blocks/product-title.liquid merge=ours
+blocks/_product-details.liquid merge=ours
 snippets/add-to-cart-button.liquid merge=ours
 snippets/product-information-content.liquid merge=ours
 
@@ -85,6 +86,7 @@ snippets/product-information-content.liquid merge=ours
 # Listed here for documentation — merge=ours is not strictly needed
 # but makes intent explicit if filenames ever collide in future Horizon versions.
 assets/r-base.css merge=ours
+assets/r-sticky-sidebar.js merge=ours
 assets/variant-buttons.js merge=ours
 blocks/variant-buttons.liquid merge=ours
 snippets/variant-buttons.liquid merge=ours

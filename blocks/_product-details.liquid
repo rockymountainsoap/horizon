@@ -1,11 +1,22 @@
-{%- assign block_settings = block.settings -%}
-<div
+{%- # r: sticky-sidebar — render the details column as <r-sticky-sidebar> when
+    # desktop stickiness is enabled. The column is pinned with native
+    # position:sticky (see the @media block in the stylesheet below);
+    # r-sticky-sidebar.js only bottom-pins columns taller than the viewport. -%}
+{%- liquid
+  assign block_settings = block.settings
+  assign r_sticky = block_settings.sticky_details_desktop
+  assign details_tag = 'div'
+  assign details_classes = 'product-details'
+  if r_sticky
+    assign details_tag = 'r-sticky-sidebar'
+  endif
+  if block_settings.height == 'fill'
+    assign details_classes = details_classes | append: ' full-height--desktop'
+  endif
+-%}
+<{{ details_tag }}
   id="ProductInformation-{{ section.id }}"
-  class="
-    product-details
-    {% if block_settings.sticky_details_desktop %} sticky-content--desktop{% endif %}
-    {% if block_settings.height == 'fill' -%} full-height--desktop{% endif -%}
-  "
+  class="{{ details_classes }}"
   style="--details-position: {{ block_settings.details_position }};"
   data-testid="product-information-details"
   {% if settings.transition_to_main_product %}
@@ -25,7 +36,12 @@
   {% endcapture %}
 
   {% render 'group', children: children, settings: block_settings, shopify_attributes: block.shopify_attributes %}
-</div>
+</{{ details_tag }}>
+
+{%- # r: load the sticky-sidebar engine only when the enhanced column is used -%}
+{%- if r_sticky -%}
+  <script src="{{ 'r-sticky-sidebar.js' | asset_url }}" type="module"></script>
+{%- endif -%}
 
 {% stylesheet %}
   /* Clear padding on mobile, if not full-width */
@@ -60,6 +76,36 @@
     .full-height--desktop .group-block {
       align-self: var(--details-position, 'flex-start');
     }
+  }
+
+  /*
+   * r: sticky-sidebar.
+   *
+   * The details column sticks via native `position: sticky` applied to the
+   * column element itself — NOT to .group-block, and with no transform. The
+   * browser pins it on the compositor in lock-step with scroll: glass smooth.
+   * (Transforming the text-heavy .group-block subtree forces sub-pixel
+   * re-rasterisation every frame and visibly jitters — so it is left alone.)
+   *
+   * The column's sticky containing block is the product grid, which is as
+   * tall as the media gallery, giving the column the gallery's full height
+   * to travel within.
+   *
+   * r-sticky-sidebar.js only intervenes for a column TALLER than the viewport:
+   * it sets a negative inline `top` so the column's bottom pins instead. The
+   * fits-the-viewport case is pure CSS below — no JavaScript at all.
+   */
+  @media screen and (min-width: 750px) {
+    r-sticky-sidebar.product-details {
+      position: sticky;
+      top: var(--r-sticky-header-offset, 0px);
+      z-index: var(--layer-flat, 1);
+    }
+  }
+
+  /* Clear a pinned sticky header so it never overlaps the column's top. */
+  body:has(#header-component[data-sticky-state='active']) r-sticky-sidebar.product-details {
+    --r-sticky-header-offset: var(--header-height);
   }
 {% endstylesheet %}
 
