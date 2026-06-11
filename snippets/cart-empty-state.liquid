@@ -1,22 +1,54 @@
 {%- doc -%}
-  Renders the empty cart merchandising block — heading, subheading,
-  and a grid of bestseller products with one-click quick-add buttons.
+  Empty-cart merchandising block.
+
+  Reuses the cart bumpers visual + Show More machinery by wrapping the
+  product list in <r-cart-bumpers data-mode="curated">. The "curated" path
+  in assets/cart-bumpers.js handles batch reveal, Show More clicks, and
+  hides the button when all items are visible — identical behaviour to the
+  in-cart upsell list, with no duplicated JS.
+
+  Shared chrome + card styles live in assets/r-base.css. This snippet only
+  adds the centered intro (heading + subheading) above the card.
 {%- enddoc -%}
 
 {%- liquid
   assign empty_collection = settings.cart_empty_collection
-  assign show_count = settings.cart_empty_show_count | default: 4
+  # Reuse the bumpers' batch + max settings so the Show More cadence is
+  # identical to the in-cart upsell list. Cap at 10 — same upper bound as
+  # the Shopify recommendations API used by the bumpers.
+  assign max_items = settings.cart_bumpers_max_items | default: 10
+  if max_items > 10
+    assign max_items = 10
+  endif
+  assign batch_size = settings.cart_bumpers_batch_size | default: 3
+
   assign heading = settings.cart_empty_heading
   if heading == blank
     assign heading = 'rocky.cart.empty.heading_fallback' | t
   endif
+
   assign subheading = settings.cart_empty_subheading
   if subheading == blank
     assign subheading = 'rocky.cart.empty.subheading_fallback' | t
   endif
--%}
 
-<script src="{{ 'cart-quick-add.js' | asset_url }}" type="module" fetchpriority="low"></script>
+  comment
+    Pre-flight: skip the card entirely when no in-stock products are
+    available, so we never render an empty heading + Show More button.
+  endcomment
+  assign available_count = 0
+  if empty_collection != blank
+    for product in empty_collection.products
+      assign p_variant = product.selected_or_first_available_variant
+      if p_variant.available
+        assign available_count = available_count | plus: 1
+        if available_count >= max_items
+          break
+        endif
+      endif
+    endfor
+  endif
+-%}
 
 <div class="r-cart-empty">
   <div class="r-cart-empty__intro">
@@ -26,38 +58,55 @@
     {%- endif -%}
   </div>
 
-  {%- if empty_collection != blank and empty_collection.products.size > 0 -%}
-    <ul class="r-cart-empty__grid" role="list">
-      {%- for product in empty_collection.products limit: show_count -%}
-        {%- assign variant = product.selected_or_first_available_variant -%}
-        <li class="r-cart-empty__item">
-          <a href="{{ product.url }}" class="r-cart-empty__media">
-            {%- if variant.featured_image != blank -%}
-              {{ variant.featured_image | image_url: width: 240 | image_tag: class: 'r-cart-empty__image', alt: variant.featured_image.alt | default: product.title }}
-            {%- elsif product.featured_media != blank -%}
-              {{ product.featured_media.preview_image | image_url: width: 240 | image_tag: class: 'r-cart-empty__image', alt: product.featured_media.preview_image.alt | default: product.title }}
-            {%- endif -%}
-          </a>
-          <div class="r-cart-empty__copy">
-            <a href="{{ product.url }}" class="r-cart-empty__title">{{ product.title }}</a>
-            <p class="r-cart-empty__price">{{ variant.price | money }}</p>
-          </div>
-          {%- if variant.available -%}
-            <r-cart-quick-add data-variant-id="{{ variant.id }}">
-              <button
-                type="button"
-                class="button button--secondary r-cart-empty__add"
-                aria-label="{{ 'rocky.cart.empty.add_aria' | t: title: product.title }}"
+  {%- if available_count > 0 -%}
+    <script src="{{ 'cart-quick-add.js' | asset_url }}" type="module" fetchpriority="low"></script>
+    <script src="{{ 'cart-bumpers.js' | asset_url }}" type="module" fetchpriority="low"></script>
+
+    {%- # r: insulate the bumpers element from cart morphs so the Show More
+        button's server `hidden` attribute can't be re-applied between JS
+        init passes (same protection as the populated-cart bumpers). -%}
+    <div class="r-cart-bumpers-host" data-skip-subtree-update>
+      <r-cart-bumpers
+        class="r-cart-bumpers"
+        data-mode="curated"
+        data-batch-size="{{ batch_size }}"
+        aria-label="{{ 'rocky.cart.empty.list_aria' | t }}"
+      >
+        <header class="r-cart-bumpers__header">
+          <h4 class="r-cart-bumpers__heading">
+            {{ 'rocky.cart.empty.list_heading' | t }}
+          </h4>
+          <span class="r-cart-bumpers__count" data-r-bumpers-count aria-hidden="true"></span>
+        </header>
+
+        <ul class="r-cart-bumpers__list" role="list" data-r-bumpers-list>
+          {%- assign rendered = 0 -%}
+          {%- for product in empty_collection.products limit: max_items -%}
+            {%- assign variant = product.selected_or_first_available_variant -%}
+            {%- if variant.available -%}
+              <li
+                class="r-cart-bumpers__item"
+                data-r-bumpers-item
+                data-product-id="{{ product.id }}"
+                {% if rendered >= batch_size %}data-r-hidden="true" hidden{% endif %}
               >
-                <span class="button-text">
-                  {{ 'rocky.cart.empty.add_label' | t }}
-                </span>
-              </button>
-            </r-cart-quick-add>
-          {%- endif -%}
-        </li>
-      {%- endfor -%}
-    </ul>
+                {% render 'cart-bumpers-card', product: product, variant: variant %}
+              </li>
+              {%- assign rendered = rendered | plus: 1 -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </ul>
+
+        <button
+          type="button"
+          class="button button--secondary r-cart-bumpers__more"
+          data-r-bumpers-more
+          hidden
+        >
+          <span class="button-text">{{ 'rocky.cart.bumpers.show_more' | t }}</span>
+        </button>
+      </r-cart-bumpers>
+    </div>
   {%- endif -%}
 </div>
 
@@ -65,16 +114,17 @@
   .r-cart-empty {
     display: flex;
     flex-direction: column;
-    gap: var(--gap-lg);
+    gap: var(--gap-md);
     width: 100%;
-    text-align: center;
-    padding-block: var(--padding-lg);
+    padding-block: var(--padding-md);
   }
 
   .r-cart-empty__intro {
     display: flex;
     flex-direction: column;
     gap: var(--gap-2xs);
+    text-align: center;
+    padding-inline: var(--padding-sm);
   }
 
   .r-cart-empty__heading {
@@ -83,82 +133,13 @@
     font-family: var(--font-heading--family);
     font-weight: var(--font-heading--weight);
     color: var(--color-foreground);
+    line-height: 1.2;
   }
 
   .r-cart-empty__subheading {
     margin: 0;
     font-size: var(--font-size--sm);
     color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text, 0.7));
-  }
-
-  .r-cart-empty__grid {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--gap-md);
-    width: 100%;
-  }
-
-  @media screen and (min-width: 750px) {
-    .r-cart-empty__grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  .r-cart-empty__item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--gap-2xs);
-    text-align: center;
-  }
-
-  .r-cart-empty__media {
-    display: block;
-    width: 100%;
-    aspect-ratio: 1;
-    overflow: hidden;
-    background-color: rgb(var(--color-foreground-rgb) / 0.04);
-  }
-
-  .r-cart-empty__image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .r-cart-empty__copy {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-3xs, 4px);
-  }
-
-  .r-cart-empty__title {
-    font-size: var(--font-size--sm);
-    color: var(--color-foreground);
-    text-decoration: none;
-    line-height: 1.2;
-  }
-
-  .r-cart-empty__title:hover {
-    text-decoration: underline;
-  }
-
-  .r-cart-empty__price {
-    margin: 0;
-    font-size: var(--font-size--sm);
-    font-weight: var(--font-weight-bold);
-  }
-
-  .r-cart-empty__add {
-    width: 100%;
-    min-height: var(--minimum-touch-target);
-    font-size: var(--font-size--xs);
-  }
-
-  r-cart-quick-add {
-    display: contents;
+    line-height: 1.4;
   }
 {% endstylesheet %}

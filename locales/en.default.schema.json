@@ -822,7 +822,6 @@
     "r_cart_empty_subheading": "Empty cart subheading",
     "r_cart_empty_collection": "Bestsellers collection",
     "r_cart_empty_collection_info": "Products shown when the cart is empty.",
-    "r_cart_empty_show_count": "Number of products to show",
     "r_cart_low_stock_enabled": "Show low-stock badge in cart",
     "r_cart_low_stock_threshold": "Low-stock threshold",
     "r_cart_low_stock_threshold_info": "Badge appears when remaining inventory is at or below this number. Suppressed for items with inventory tracking off or set to continue selling when out of stock.",

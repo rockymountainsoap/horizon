@@ -1550,7 +1550,7 @@
         "step": 1,
         "unit": "px",
         "label": "t:settings.border_radius",
-        "default": 100
+        "default": 0
       },
       {
         "type": "select",
@@ -1607,7 +1607,7 @@
         "step": 1,
         "unit": "px",
         "label": "t:settings.border_radius",
-        "default": 100
+        "default": 0
       },
       {
         "type": "select",
@@ -2015,12 +2015,6 @@
         "id": "cart_empty_collection",
         "label": "t:settings.r_cart_empty_collection",
         "info": "t:settings.r_cart_empty_collection_info"
-      },
-      {
-        "type": "number",
-        "id": "cart_empty_show_count",
-        "label": "t:settings.r_cart_empty_show_count",
-        "default": 4
       },
       {
         "type": "header",

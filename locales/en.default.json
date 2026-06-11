@@ -429,8 +429,8 @@
       "empty": {
         "heading_fallback": "Start Here",
         "subheading_fallback": "Your next favourite thing is one step away.",
-        "add_aria": "Add {{ title }} to cart",
-        "add_label": "Add"
+        "list_heading": "Customer favourites",
+        "list_aria": "Suggested products to add to your cart"
       }
     }
   }
