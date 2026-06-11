@@ -206,6 +206,16 @@ Modify the upstream file directly. Forking these into parallel `r-*` alternates 
 3. Net-new building blocks the change depends on (e.g. a new `r-inflow-card` block) still follow the `r-` prefix rule and live in their own files.
 4. Keep additions minimal and composable — prefer hooks (block-type registrations, `content_for 'blocks'` insertion points) over inline logic.
 
+**Inline-comment syntax — avoid `Syntax error in tag '#'`.** `{%- # … -%}` is Liquid's *line-oriented* comment tag: if a marker wraps onto multiple lines, **every** line must start with `#`. Keep `# r:` markers to a single line; for a longer rationale, pair a one-line marker with a `{% comment %}` block:
+
+```liquid
+{%- # r: insulate bumpers from cart morphs -%}
+{% comment %}
+  The Show More button's server `hidden` attribute can't be re-applied
+  between JS init passes (same protection as the populated-cart bumpers).
+{% endcomment %}
+```
+
 **Path B — Non-critical upstream files (last resort).**
 For one-off bug fixes or small modifications to non-critical files, prefer creating an `r-*` alternate. If you must edit upstream:
 
@@ -351,7 +361,7 @@ Horizon uses a DOM morphing library (idiomorph-based) to update sections in-plac
 Any element whose children are built entirely by JavaScript at runtime (e.g. a `<dialog>` or `<div>` whose `innerHTML` is set by a custom element's `connectedCallback` or event handlers). Add the attribute to the Liquid template so the server HTML and live DOM both carry it — the morph library checks both sides.
 
 ```liquid
-{{- # Example: protect the wishlist dialog from cart section re-renders -}}
+{%- # Example: protect the wishlist dialog from cart section re-renders -%}
 <dialog
   id="r-wishlist-dialog"
   class="r-wishlist-dialog"

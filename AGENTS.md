@@ -144,9 +144,15 @@ Is this a net-new Rocky feature?
 │
 ├── YES: Does any existing upstream file cover this surface?
 │    ├── NO  → Create r-* file. Done.
-│    └── YES → Can I compose a new r-* section/block on top of it?
-│              ├── YES → Create r-* file using content_for 'blocks'. Done.
-│              └── NO  → Must modify upstream file. Follow §5 of forked-theme-standards.
+│    └── YES → Is this an architecture-critical surface?
+│              (collection grid, cart drawer, header, global product card,
+│               main shell, etc. — see "Architecture-critical surfaces" below)
+│              ├── YES → Modify upstream file directly with {%- # r: -%} markers.
+│              │         File should already be merge=ours; if not, add it.
+│              │         Net-new dependencies (e.g. a new r-block) still use r-*.
+│              └── NO  → Can I compose a new r-* section/block on top of it?
+│                        ├── YES → Create r-* file using content_for 'blocks'. Done.
+│                        └── NO  → Modify upstream file (see §5 of forked-theme-standards).
 │
 └── NO (bug fix / upstream improvement):
      ├── Bug is in an upstream file and upstream hasn't fixed it
@@ -183,15 +189,52 @@ templates/page.r-about.json         ← About Us page
 templates/article.r-editorial.json  ← Journal article
 ```
 
-### Modifying an Upstream File (last resort)
+### Modifying an Upstream File
+
+There are two paths, and the right one depends on whether the file is **architecture-critical** (see below):
+
+**Path A — Architecture-critical surfaces (preferred for these files).**
+Modify the upstream file directly. Forking these into parallel `r-*` alternates creates an ongoing merge burden every time Shopify ships an upstream improvement, and it splits site behaviour across two implementations.
+
+1. Confirm the file is `merge=ours` in `.gitattributes` (add it if not, and add it to `.cursor/references/gitattributes-merge-strategy.md`).
+2. Make the change directly in the upstream file. Wrap **every** Rocky addition in markers so the diff is trivially auditable on upstream merges:
+   ```liquid
+   {%- # r: brief description -%}
+   …Rocky additions…
+   {%- # r: end -%}
+   ```
+3. Net-new building blocks the change depends on (e.g. a new `r-inflow-card` block) still follow the `r-` prefix rule and live in their own files.
+4. Keep additions minimal and composable — prefer hooks (block-type registrations, `content_for 'blocks'` insertion points) over inline logic.
+
+**Inline-comment syntax — avoid `Syntax error in tag '#'`.** `{%- # … -%}` is Liquid's *line-oriented* comment tag: if a marker wraps onto multiple lines, **every** line must start with `#`. Keep `# r:` markers to a single line; for a longer rationale, pair a one-line marker with a `{% comment %}` block:
+
+```liquid
+{%- # r: insulate bumpers from cart morphs -%}
+{% comment %}
+  The Show More button's server `hidden` attribute can't be re-applied
+  between JS init passes (same protection as the populated-cart bumpers).
+{% endcomment %}
+```
+
+**Path B — Non-critical upstream files (last resort).**
+For one-off bug fixes or small modifications to non-critical files, prefer creating an `r-*` alternate. If you must edit upstream:
 
 1. Add the file to `.gitattributes` as `merge=ours`
 2. Add it to the table in `.cursor/references/gitattributes-merge-strategy.md`
-3. Mark every Rocky change with a valid Liquid inline comment:
-   ```liquid
-   {%- # r: brief description of what was added -%}
-   ```
-4. Keep changes minimal — prefer adding hooks that Rocky sections can compose from
+3. Mark every change with `{%- # r: -%}` markers as in Path A.
+
+#### Architecture-critical surfaces
+
+These are the files Rocky modifies directly rather than forking. The list is small and high-leverage — adding to it requires a deliberate decision (capture it in the relevant `WS*` plan).
+
+- `sections/main-collection.liquid` — collection grid (PLP)
+- `sections/header.liquid` — global header
+- `snippets/header-actions.liquid` — header actions (cart, search, account, wishlist)
+- `blocks/_product-card.liquid` — global product card
+- `layout/theme.liquid` — global shell
+- `snippets/stylesheets.liquid` / `snippets/scripts.liquid` — global asset entry points
+
+If you are about to fork one of these into an `r-*` parallel and the change is anything more than additive composition, stop and use Path A instead.
 
 ---
 
@@ -318,7 +361,7 @@ Horizon uses a DOM morphing library (idiomorph-based) to update sections in-plac
 Any element whose children are built entirely by JavaScript at runtime (e.g. a `<dialog>` or `<div>` whose `innerHTML` is set by a custom element's `connectedCallback` or event handlers). Add the attribute to the Liquid template so the server HTML and live DOM both carry it — the morph library checks both sides.
 
 ```liquid
-{{- # Example: protect the wishlist dialog from cart section re-renders -}}
+{%- # Example: protect the wishlist dialog from cart section re-renders -%}
 <dialog
   id="r-wishlist-dialog"
   class="r-wishlist-dialog"
@@ -814,7 +857,7 @@ These rules apply automatically to their respective file types. The forked-theme
 
 | Question | Answer |
 |---|---|
-| Should I edit an upstream section? | No — create `sections/r-*.liquid` instead |
+| Should I edit an upstream section? | Depends — for architecture-critical surfaces (e.g. `main-collection.liquid`, `header.liquid`), yes via Path A with `{%- # r: -%}` markers. For everything else, create `sections/r-*.liquid`. |
 | Should I edit `templates/product.json`? | No — create `templates/product.r-*.json` |
 | Where does section CSS go? | Inside the section's own `{% stylesheet %}` tag |
 | Where does shared CSS go? | `assets/r-base.css` only if used in 2+ files |
