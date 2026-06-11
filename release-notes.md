@@ -75,9 +75,20 @@ This Rocky-fork release introduces the **Variant Filter** system: a custom Shopi
 
 ---
 
-## v3.4.0 (upstream Horizon)
+## v3.5.1 (upstream Horizon)
 
-This release adds a text option for header links as an alternative for the current icons as well as updates to customer accounts. It also includes UX and accessibility improvements, and bugfixes.
+Various fixes to translation strings and better support for "Split showcase" section on small screens.
+
+### Fixes and improvements
+
+* [Accessibility] Fixed header logo alt text bug caused by translation strings
+* [Performance] Color swatch rendering improvement for combined listing products
+* [Split Showcase] Stop content overlap when blocks wrap on mobile
+* [Collections] Added missing translations strings for price filtering components
+
+---
+
+## v3.4.0 (upstream Horizon)
 
 ### Added
 
@@ -91,9 +102,3 @@ This release adds a text option for header links as an alternative for the curre
 * [Accessibility] Improved accessibility of the header menu with better aria roles
 * [Product] Allow product details column to expand on larger viewports
 * [Product] Display single-value variant options as text instead of dropdown
-
-### Fixes and improvements
-
-* [Product] Fixed flash of disabled buttons when changing a variant
-* [Cart] Fixed cart drawer spacing and line wrapping
-* [Page] Fixed inconsistent vertical spacing between heading presets and RTE headings
