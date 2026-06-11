@@ -14,7 +14,9 @@
 *.sublime-project
 *.sublime-workspace
 # Cursor/Claude session data (auto-generated, local only)
-.claude/
+.claude/*
+# …but track shared, version-controlled skills (e.g. /upstream-merge)
+!.claude/skills/
 
 .cursor/temp/
 
