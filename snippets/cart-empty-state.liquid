@@ -63,8 +63,8 @@
     <script src="{{ 'cart-bumpers.js' | asset_url }}" type="module" fetchpriority="low"></script>
 
     {%- # r: insulate the bumpers element from cart morphs so the Show More
-        button's server `hidden` attribute can't be re-applied between JS
-        init passes (same protection as the populated-cart bumpers). -%}
+        # button's server `hidden` attribute can't be re-applied between JS
+        # init passes (same protection as the populated-cart bumpers). -%}
     <div class="r-cart-bumpers-host" data-skip-subtree-update>
       <r-cart-bumpers
         class="r-cart-bumpers"
