@@ -1,0 +1,77 @@
+# Engine Manifest — Upstream-Tracked Files
+
+> **The only files in this repo with an upstream-sync obligation.** Everything else is
+> Rocky-owned (see `.cursor/plans/WS7-frontend-rework-adr.md`). Check this file before
+> editing any `assets/*.js` — if the file is listed below, do **not** patch it directly.
+
+---
+
+## Baseline
+
+| Field | Value |
+|---|---|
+| **Adoption baseline (content)** | Horizon **v3.5.1-era** — upstream commit `70c27a8`, tag **`adoption-baseline-v3.5.1`** (pushed to origin) |
+| **Upstream history merged through** | `68760d9` (v4.1.1, 2026-07-14 merge) — *history only; v4.x content deliberately not taken (palette rewrite; see ADR)* |
+| **Last-synced upstream ref (engine content)** | `adoption-baseline-v3.5.1` (`70c27a8`) — **advanced by each engine sync; the sync skill diffs from here** |
+| Adopted | 2026-07 (WS7) |
+
+Consulting upstream for an ADOPTED (non-manifest) file:
+```bash
+git diff adoption-baseline-v3.5.1..upstream/main -- <file>   # reference, never merge
+```
+
+## Manifest (14 files)
+
+| File | Role | Sync notes |
+|---|---|---|
+| `assets/component.js` | `Component` base class; `ref` collection; declarative `on:<event>=` delegated listener system | **Contract-critical** — 59 dependents import `@theme/component`. Review any change to ref/on: semantics against all Rocky + adopted components. |
+| `assets/utilities.js` | scheduler, view-transition helpers, debounce/throttle, breakpoints, fetchConfig | ⚠️ **Caveat region (~L700–730):** `setMenuStyle()` + header-group height fns are coupled to Horizon header DOM (`#header-component`, `#header-group`, `overflow-list`). Never blindly apply upstream changes there; split into an `r-` module when the custom header lands, then note the divergence here. |
+| `assets/events.js` | `ThemeEvents` names + typed event classes (`CartAddEvent`, `VariantUpdateEvent`, …) | Adopted feature files listen to these names/payloads — grep adopted files before applying renames. Note: `CartUpdateEvent`/`CartAddEvent` extend `Event`, not `CustomEvent`. |
+| `assets/morph.js` | DOM morphing + `MORPH_OPTIONS` | Escape-hatch attributes (`data-skip-subtree-update`, `data-skip-node-update`) are load-bearing for Rocky (wishlist, cart) — see AGENTS.md Runtime Internals. |
+| `assets/section-renderer.js` | Section Rendering API wrapper (`renderSection`, `morphSection`) | API surface called by adopted feature files. |
+| `assets/section-hydration.js` | idle re-hydration via `data-hydration-key` | Tiny; low churn. |
+| `assets/dialog.js` | `DialogComponent` modal primitive + open/close events | Base class of cart-drawer, quick-add, zoom, Rocky dialogs. |
+| `assets/focus.js` | focus trap / a11y helpers | Low churn. |
+| `assets/scrolling.js` | scroll observers, scroll-end, scroll-hint | Engine-adjacent. |
+| `assets/performance.js` | `cartPerformance` metrics | Low churn. |
+| `assets/money-formatting.js` | currency formatting | |
+| `assets/view-transitions.js` | render-blocker release (standalone IIFE, `<script async>`) | Pairs with `#view-transition-render-blocker` in `theme.liquid`. |
+| `assets/popover-polyfill.js` | platform polyfill | Vendored; replace wholesale on sync. |
+| `assets/theme-editor.js` | theme-editor / design-mode integration | Keeps the editor working; Shopify evolves editor requirements — always sync. |
+
+### Manifest candidates (new in upstream v4.x, kept as inert reference files)
+
+Brought in by the 2026-07 history-only merge; **not loaded** (no `scripts.liquid` reference)
+until adopted deliberately:
+
+`assets/standard-actions-override.js`, `assets/standard-actions.d.ts`,
+`assets/standard-events.d.ts`, `assets/page-view-event.js`,
+`assets/view-event-elements.js`, `assets/view-event-elements.d.ts`,
+`assets/theme-drawer.js`, `assets/scroll-container.js`,
+`assets/disclosures-summary-fit.js`
+
+These implement upstream's v4 "Storefront Events & Actions" (app/agent/AI cart
+interactions) and the theme-drawer primitive. Evaluate for the manifest during the
+first engine sync.
+
+## Rules
+
+1. **No Rocky patches inside manifest files.** Extend by composition: new `r-*.js`
+   modules importing `@theme/*`. If a patch is truly unavoidable, mark it with a
+   `// r:` comment and record it in the table above (it becomes a hand-reapply
+   obligation on every sync).
+2. **Sync protocol:** see `.claude/skills/engine-sync/SKILL.md`. Summary: fetch
+   upstream → diff `last-synced-ref..upstream/<new>` for manifest files only →
+   per-file compat review → `git checkout upstream/<ref> -- <file>` → theme-check +
+   preview theme → update the changelog below and the last-synced ref.
+3. **Adding/removing files:** upstream may add engine modules (see candidates above)
+   or split existing ones. Adding to the manifest is a deliberate decision — record
+   it in the changelog with rationale. Removing (e.g. after a Rocky rebuild replaces
+   a module) likewise.
+
+## Sync changelog
+
+| Date | Upstream ref | Files | Outcome |
+|---|---|---|---|
+| 2026-07 | `70c27a8` (v3.5.1-era) | all | Baseline established (WS7 adoption). |
+| — | `68760d9` (v4.1.1) | 9 changed: component.js +50, dialog.js ±21, events.js −191 (moved into standard-events system), money-formatting.js ±80, morph.js ±285, section-renderer.js +79, theme-editor.js −12, utilities.js ±88, view-transitions.js +56; unchanged: focus, scrolling, performance, popover-polyfill, section-hydration | **PENDING — first engine-sync exercise.** Deliberately not taken in the 2026-07 history-only merge; requires compat review (esp. events.js restructure) against v3.5.1-content feature JS before applying. |
