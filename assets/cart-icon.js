@@ -1,7 +1,6 @@
 import { Component } from '@theme/component';
 import { onAnimationEnd } from '@theme/utilities';
-import { ThemeEvents } from '@theme/events';
-import { StandardEvents, CartLinesUpdateEvent } from '@shopify/events';
+import { ThemeEvents, CartUpdateEvent } from '@theme/events';
 
 /**
  * A custom element that displays a cart icon.
@@ -28,7 +27,7 @@ class CartIcon extends Component {
   connectedCallback() {
     super.connectedCallback();
 
-    document.addEventListener(StandardEvents.cartLinesUpdate, this.onCartUpdate);
+    document.addEventListener(ThemeEvents.cartUpdate, this.onCartUpdate);
     window.addEventListener('pageshow', this.onPageShow);
     this.ensureCartBubbleIsCorrect();
   }
@@ -36,7 +35,7 @@ class CartIcon extends Component {
   disconnectedCallback() {
     super.disconnectedCallback();
 
-    document.removeEventListener(StandardEvents.cartLinesUpdate, this.onCartUpdate);
+    document.removeEventListener(ThemeEvents.cartUpdate, this.onCartUpdate);
     window.removeEventListener('pageshow', this.onPageShow);
   }
 
@@ -52,30 +51,27 @@ class CartIcon extends Component {
 
   /**
    * Handles the cart update event.
-   * @param {CartLinesUpdateEvent} event - The cart update event.
+   * @param {CartUpdateEvent} event - The cart update event.
    */
-  onCartUpdate = (event) => {
-    event.promise
-      ?.then(({ cart, detail }) => {
-        const itemCount = cart?.totalQuantity ?? detail?.itemCount ?? 0;
+  onCartUpdate = async (event) => {
+    const itemCount = event.detail.data?.itemCount ?? 0;
+    const comingFromProductForm = event.detail.data?.source === 'product-form-component';
 
-        this.renderCartBubble(itemCount);
-      })
-      .catch((error) => {
-        if (error?.name !== 'AbortError') console.warn('[cart-icon] Event promise rejected:', error);
-      });
+    this.renderCartBubble(itemCount, comingFromProductForm);
   };
 
   /**
    * Renders the cart bubble.
-   * @param {number} itemCount - The absolute number of items in the cart.
-   * @param {boolean} [animate=true] - Whether to animate the bubble.
+   * @param {number} itemCount - The number of items in the cart.
+   * @param {boolean} comingFromProductForm - Whether the cart update is coming from the product form.
    */
-  renderCartBubble = async (itemCount, animate = true) => {
+  renderCartBubble = async (itemCount, comingFromProductForm, animate = true) => {
+    // If the cart update is coming from the product form, we add to the current cart count, otherwise we set the new cart count
+
     this.refs.cartBubbleCount.classList.toggle('hidden', itemCount === 0);
     this.refs.cartBubble.classList.toggle('visually-hidden', itemCount === 0);
 
-    this.currentCartCount = itemCount;
+    this.currentCartCount = comingFromProductForm ? this.currentCartCount + itemCount : itemCount;
 
     this.classList.toggle('header-actions__cart-icon--has-cart', itemCount > 0);
 
@@ -124,7 +120,7 @@ class CartIcon extends Component {
         const count = parseInt(value, 10);
 
         if (count >= 0) {
-          this.renderCartBubble(count, false);
+          this.renderCartBubble(count, false, false);
         }
       }
     } catch (_) {

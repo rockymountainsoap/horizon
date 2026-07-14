@@ -1,6 +1,5 @@
 import { Component } from '@theme/component';
-import { ThemeEvents, ZoomMediaSelectedEvent } from '@theme/events';
-import { StandardEvents, ProductSelectEvent } from '@shopify/events';
+import { ThemeEvents, VariantUpdateEvent, ZoomMediaSelectedEvent } from '@theme/events';
 
 /**
  * A custom element that renders a media gallery.
@@ -19,7 +18,7 @@ export class MediaGallery extends Component {
     const { signal } = this.#controller;
     const target = this.closest('.shopify-section, dialog');
 
-    target?.addEventListener(StandardEvents.productSelect, this.#handleProductSelect, { signal });
+    target?.addEventListener(ThemeEvents.variantUpdate, this.#handleVariantUpdate, { signal });
     this.refs.zoomDialogComponent?.addEventListener(ThemeEvents.zoomMediaSelected, this.#handleZoomMediaSelected, {
       signal,
     });
@@ -34,26 +33,19 @@ export class MediaGallery extends Component {
   }
 
   /**
-   * Handles a product select event by replacing the current media gallery with a new one.
+   * Handles a variant update event by replacing the current media gallery with a new one.
    *
-   * @param {ProductSelectEvent} event - The product select event.
+   * @param {VariantUpdateEvent} event - The variant update event.
    */
-  #handleProductSelect = (event) => {
-    if (!(event.target instanceof Element) || event.target.closest('product-card')) return;
+  #handleVariantUpdate = (event) => {
+    const source = event.detail.data.html;
 
-    event.promise
-      .then(({ detail }) => {
-        if (!detail?.html) return;
+    if (!source) return;
+    const newMediaGallery = source.querySelector('media-gallery');
 
-        const { html } = detail;
-        const newMediaGallery = html.querySelector('media-gallery');
-        if (!newMediaGallery) return;
+    if (!newMediaGallery) return;
 
-        this.replaceWith(newMediaGallery);
-      })
-      .catch((error) => {
-        if (error?.name !== 'AbortError') console.warn('[media-gallery] Event promise rejected:', error);
-      });
+    this.replaceWith(newMediaGallery);
   };
 
   /**

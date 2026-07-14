@@ -2,9 +2,6 @@ import { Component } from '@theme/component';
 import { debounce, onDocumentLoaded, setHeaderMenuStyle } from '@theme/utilities';
 import { MegaMenuHoverEvent } from '@theme/events';
 
-/** Skim filter: pointer must dwell this long before MegaMenuHoverEvent fires. */
-const HOVER_COMMIT_DELAY_MS = 150;
-
 /**
  * A custom element that manages a header menu.
  *
@@ -25,9 +22,6 @@ class HeaderMenu extends Component {
    */
   #submenuMutationObserver = null;
 
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  #hoverDispatchTimer;
-
   connectedCallback() {
     super.connectedCallback();
 
@@ -45,8 +39,6 @@ class HeaderMenu extends Component {
     }
     this.overflowMenu?.removeEventListener('pointerleave', this.#overflowSubmenuListener);
     this.#cleanupMutationObserver();
-    clearTimeout(this.#hoverDispatchTimer);
-    this.#hoverDispatchTimer = undefined;
   }
 
   /**
@@ -144,7 +136,7 @@ class HeaderMenu extends Component {
    * @param {HTMLElement} item
    */
   #stopPointerTracking(item) {
-    window.clearTimeout(this.#pointerIdleTimer);
+    clearTimeout(this.#pointerIdleTimer);
     this.#pointerIdleTimer = undefined;
     item.style.removeProperty('--box-height');
     delete item.dataset.safetyBox;
@@ -174,6 +166,8 @@ class HeaderMenu extends Component {
    * @param {PointerEvent | FocusEvent} event
    */
   activate = (event) => {
+    this.dispatchEvent(new MegaMenuHoverEvent());
+
     if (!(event.target instanceof Element) || !this.headerComponent) return;
 
     let item = findMenuItem(event.target);
@@ -202,20 +196,6 @@ class HeaderMenu extends Component {
     }
 
     if (submenu) {
-      clearTimeout(this.#hoverDispatchTimer);
-      this.#hoverDispatchTimer = undefined;
-      const committedItem = item;
-      if (event instanceof FocusEvent) {
-        this.dispatchEvent(new MegaMenuHoverEvent());
-      } else {
-        this.#hoverDispatchTimer = setTimeout(() => {
-          this.#hoverDispatchTimer = undefined;
-          if (this.#state.activeItem === committedItem) {
-            this.dispatchEvent(new MegaMenuHoverEvent());
-          }
-        }, HOVER_COMMIT_DELAY_MS);
-      }
-
       // Mark submenu as active for content-visibility optimization
       submenu.dataset.active = '';
 
@@ -262,10 +242,8 @@ class HeaderMenu extends Component {
       finalHeight = 0;
     }
 
-    const headerVisibleHeight = this.#getHeaderVisibleHeight();
-
     this.headerComponent.style.setProperty('--submenu-height', `${finalHeight}px`);
-    this.#setFullOpenHeaderHeight(finalHeight, headerVisibleHeight);
+    this.#setFullOpenHeaderHeight(finalHeight);
     this.style.setProperty('--submenu-opacity', '1');
     this.#startPointerTracking(item, previouslyActiveItem);
   };
@@ -304,11 +282,8 @@ class HeaderMenu extends Component {
     // Don't deactivate if the overflow menu or overflow list is still being hovered
     if (this.overflowListHovered || this.overflowMenu?.matches(':hover')) return;
 
-    clearTimeout(this.#hoverDispatchTimer);
-    this.#hoverDispatchTimer = undefined;
-
     this.headerComponent?.style.setProperty('--submenu-height', '0px');
-    this.#setFullOpenHeaderHeight(0, 0);
+    this.#setFullOpenHeaderHeight(0);
     this.style.setProperty('--submenu-opacity', '0');
     this.dataset.overflowExpanded = 'false';
 
@@ -354,29 +329,21 @@ class HeaderMenu extends Component {
   }
 
   /**
-   * Read the visible header height before submenu height writes invalidate layout.
-   * @returns {number}
+   * Calculate and set the full open header height. If the submenu is not open, the full open header height is 0.
+   * @param {number} submenuHeight
    */
-  #getHeaderVisibleHeight() {
-    if (!this.headerComponent) return 0;
+  #setFullOpenHeaderHeight(submenuHeight) {
+    if (!this.headerComponent) return;
 
     const isOverlapSituation = this.headerComponent.hasAttribute('data-submenu-overlap-bottom-row');
 
-    return isOverlapSituation && this.headerComponent.offsetHeight > 0
-      ? /** @type {HTMLElement | null} */ (this.headerComponent.querySelector('.header__row--top'))?.offsetHeight ?? 0
-      : this.headerComponent.offsetHeight;
-  }
-
-  /**
-   * Calculate and set the full open header height. If the submenu is not open, the full open header height is 0.
-   * @param {number} submenuHeight
-   * @param {number} headerVisibleHeight
-   */
-  #setFullOpenHeaderHeight(submenuHeight, headerVisibleHeight) {
-    if (!this.headerComponent) return;
+    const headerVisibleHeight =
+      isOverlapSituation && this.headerComponent.offsetHeight > 0
+        ? /** @type {HTMLElement | null} */ (this.headerComponent.querySelector('.header__row--top'))?.offsetHeight ?? 0
+        : this.headerComponent.offsetHeight;
 
     const nothingToOpen = submenuHeight === 0;
-    const fullOpenHeaderHeight = nothingToOpen ? 0 : submenuHeight + headerVisibleHeight;
+    const fullOpenHeaderHeight = nothingToOpen ? 0 : submenuHeight + (headerVisibleHeight ?? 0);
 
     this.headerComponent?.style.setProperty('--full-open-header-height', `${fullOpenHeaderHeight}px`);
   }

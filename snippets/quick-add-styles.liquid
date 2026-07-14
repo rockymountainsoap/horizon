@@ -5,13 +5,6 @@
   {% render 'quick-add-styles' %}
 {%- enddoc -%}
 
-{% style %}
-  .custom-color-quick-add {
-    --quick-add-background: {{ settings.quick_add_background }};
-    --quick-add-foreground: {{ settings.quick_add_text }};
-  }
-{% endstyle %}
-
 {% stylesheet %}
   /* Quick Add */
   .quick-add {
@@ -33,6 +26,10 @@
     cursor: not-allowed;
   }
 
+  .quick-add[class*='color-scheme-'] {
+    background-color: #0000;
+  }
+
   product-card:is(:hover, :focus-within) .quick-add__button {
     opacity: 1;
   }
@@ -48,8 +45,7 @@
     cursor: pointer;
     opacity: var(--quick-add-mobile-opacity, 0);
     overflow: hidden;
-    color: var(--quick-add-foreground, var(--color-foreground));
-    background-color: var(--quick-add-background, var(--color-background));
+    color: var(--color-foreground);
     pointer-events: all;
     position: absolute;
     right: max(var(--quick-add-right), calc((var(--border-radius) + var(--quick-add-right)) * (1 - cos(45deg))));
@@ -87,7 +83,7 @@
   }
 
   .quick-add__button .add-to-cart-text {
-    background: var(--quick-add-background, var(--color-background));
+    background: var(--color-background);
     overflow: hidden;
     border-radius: 50px;
     height: 100%;

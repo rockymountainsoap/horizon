@@ -4,20 +4,12 @@
   fetchpriority="low"
 ></script>
 
-{% liquid
-  if section.settings.background_color != blank
-    render 'contrast-override', background_color: section.settings.background_color, section_id: section.id
-  endif
-%}
-
 <blog-posts-list section-id="{{ section.id }}">
-  <div
-    class="section-background{% if section.settings.background_color != blank %} color-custom-{{ section.id }}{% endif %}"
-  ></div>
+  <div class="section-background color-{{ section.settings.color_scheme }}"></div>
   <div
     class="
       section
-      {% if section.settings.background_color != blank %}color-custom-{{ section.id }}{% endif %}
+      color-{{ section.settings.color_scheme }}
       blog-posts
       spacing-style
       size-style
@@ -142,7 +134,6 @@
    */
   .blog-post-item {
     grid-column: span var(--col-span);
-    background-color: var(--color-background);
   }
 
   /**
@@ -199,10 +190,10 @@
   },
   "settings": [
     {
-      "type": "color",
-      "id": "background_color",
-      "label": "t:settings.background_color",
-      "placeholder": "t:settings.default"
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1"
     },
     {
       "type": "header",

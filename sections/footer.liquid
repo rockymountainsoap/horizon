@@ -1,14 +1,6 @@
-{% liquid
-  if section.settings.background_color != blank
-    render 'contrast-override', background_color: section.settings.background_color, section_id: section.id
-  endif
-%}
-
+<div class="section-background color-{{ section.settings.color_scheme }}"></div>
 <div
-  class="section-background{% if section.settings.background_color != blank %} color-custom-{{ section.id }}{% endif %}"
-></div>
-<div
-  class="section section--{{ section.settings.section_width }}{% if section.settings.background_color != blank %} color-custom-{{ section.id }}{% endif %}"
+  class="section section--{{ section.settings.section_width }} color-{{ section.settings.color_scheme }}"
 >
   {% liquid
     assign total_blocks = section.blocks.size
@@ -176,10 +168,10 @@
       "default": 0
     },
     {
-      "type": "color",
-      "id": "background_color",
-      "label": "t:settings.background_color",
-      "default": "{{ settings.color_palette.foreground }}"
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1"
     },
     {
       "type": "header",
@@ -212,6 +204,7 @@
       "category": "t:categories.footer",
       "settings": {
         "gap": 20,
+        "color_scheme": "scheme-1",
         "padding-block-start": 36,
         "padding-block-end": 36
       },
@@ -224,7 +217,8 @@
             "horizontal_alignment": "flex-start",
             "vertical_alignment": "center",
             "gap": 6,
-            "width": "fill"
+            "width": "fill",
+            "inherit_color_scheme": true
           },
           "blocks": {
             "newsletter-heading": {

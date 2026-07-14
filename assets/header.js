@@ -1,11 +1,5 @@
 import { Component } from '@theme/component';
 import { onDocumentLoaded, changeMetaThemeColor, setHeaderMenuStyle } from '@theme/utilities';
-import {
-  getScrollTop,
-  getScrollEventTarget,
-  getIntersectionRoot,
-  scrollContainerMediaQuery,
-} from '@theme/scroll-container';
 
 /**
  * @typedef {Object} HeaderComponentRefs
@@ -38,9 +32,6 @@ class HeaderComponent extends Component {
    * @type {IntersectionObserver | null}
    */
   #intersectionObserver = null;
-
-  /** @type {EventTarget | null} */
-  #scrollContainer = null;
 
   /**
    * Whether the header has been scrolled offscreen, when sticky behavior is 'scroll-up'
@@ -93,7 +84,6 @@ class HeaderComponent extends Component {
 
     const config = {
       threshold: alwaysSticky ? 1 : 0,
-      root: getIntersectionRoot(),
     };
 
     this.#intersectionObserver = new IntersectionObserver(([entry]) => {
@@ -129,38 +119,9 @@ class HeaderComponent extends Component {
       this.#menuDrawerHiddenWidth = window.innerWidth;
     } else {
       this.#menuDrawerHiddenWidth = null;
-      // The drawer squeeze can trigger minimum-reached at desktop widths where
-      // it normally wouldn't. Once the menu hides, the overflow-list is
-      // display:none and can't measure to clear it. Resetting it here so
-      // setHeaderMenuStyle() sees a clean state.
-      const overflowList = this.querySelector('overflow-list');
-      if (overflowList) overflowList.removeAttribute('minimum-reached');
     }
     setHeaderMenuStyle();
   }
-
-  /**
-   * Rebinds the scroll listener and IntersectionObserver when the viewport
-   * crosses the squeeze breakpoint (990px). The scroll container switches
-   * between `.page-wrapper` (desktop) and `document.scrollingElement` (mobile),
-   * so cached bindings from initialization become stale after a resize.
-   */
-  #handleBreakpointChange = () => {
-    const stickyMode = this.getAttribute('sticky');
-    if (!stickyMode) return;
-
-    // Rebind scroll listener
-    if (this.#scrollContainer) {
-      this.#scrollContainer.removeEventListener('scroll', this.#handleWindowScroll);
-      this.#scrollContainer = getScrollEventTarget();
-      this.#scrollContainer.addEventListener('scroll', this.#handleWindowScroll);
-    }
-
-    // Recreate IntersectionObserver with the new root
-    this.#intersectionObserver?.disconnect();
-    this.#intersectionObserver = null;
-    this.#observeStickyPosition(stickyMode === 'always');
-  };
 
   #handleWindowScroll = () => {
     if (this.#scrollRafId !== null) return;
@@ -175,7 +136,7 @@ class HeaderComponent extends Component {
     const stickyMode = this.getAttribute('sticky');
     if (!this.#offscreen && stickyMode !== 'always') return;
 
-    const scrollTop = getScrollTop();
+    const scrollTop = document.scrollingElement?.scrollTop ?? 0;
     const headerTop = this.getBoundingClientRect().top;
     const isScrollingUp = scrollTop < this.#lastScrollTop;
     const isAtTop = headerTop >= 0;
@@ -231,11 +192,8 @@ class HeaderComponent extends Component {
       this.#observeStickyPosition(stickyMode === 'always');
 
       if (stickyMode === 'scroll-up' || stickyMode === 'always') {
-        this.#scrollContainer = getScrollEventTarget();
-        this.#scrollContainer.addEventListener('scroll', this.#handleWindowScroll);
+        document.addEventListener('scroll', this.#handleWindowScroll);
       }
-
-      scrollContainerMediaQuery.addEventListener('change', this.#handleBreakpointChange);
     }
   }
 
@@ -244,9 +202,7 @@ class HeaderComponent extends Component {
     this.#resizeObserver.disconnect();
     this.#intersectionObserver?.disconnect();
     this.removeEventListener('overflowMinimum', this.#handleOverflowMinimum);
-    scrollContainerMediaQuery.removeEventListener('change', this.#handleBreakpointChange);
-    this.#scrollContainer?.removeEventListener('scroll', this.#handleWindowScroll);
-    this.#scrollContainer = null;
+    document.removeEventListener('scroll', this.#handleWindowScroll);
     if (this.#scrollRafId !== null) {
       cancelAnimationFrame(this.#scrollRafId);
       this.#scrollRafId = null;
