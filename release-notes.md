@@ -75,6 +75,50 @@ This Rocky-fork release introduces the **Variant Filter** system: a custom Shopi
 
 ---
 
+## v4.1.1 (upstream Horizon)
+
+This release improves storefront navigation for customers using in-app browsers.
+
+### Fixes and improvements
+
+* Improved storefront navigation compatibility in in-app browsers.
+
+---
+
+## v4.1.0 (upstream Horizon)
+
+This release adds support for product disclosures.
+
+### Added
+
+* New block to display product disclosures in sections and cart items now show an inline disclosures tooltip.
+
+---
+
+## v4.0.0 (upstream Horizon)
+
+This release introduces color palettes: a simpler way to manage theme colors used across the theme. It also allows blog posts to be more customizable with reorderable blocks.
+
+### Added
+
+* [Colors] Added global color palette settings and numerous text and background color settings across blocks and sections.
+* [Blog posts] Blog post now support reorderable theme and app blocks.
+* [Storefront Events & Actions] Added support for app, agent, and AI cart interactions without page reloads.
+
+### Removed
+
+* [Color schemes] Removed global color scheme settings and replaced it with color palette settings.
+
+### Fixes and improvements
+
+* Improved cart drawer reliability across cart updates.
+* Improved cart and filter drawer accessibility.
+* Improved sticky add-to-cart visibility and sync behavior.
+* Fixed filter drawer persistence and vertical filter display issues.
+* Improved font preloading.
+
+---
+
 ## v3.5.1 (upstream Horizon)
 
 Various fixes to translation strings and better support for "Split showcase" section on small screens.
