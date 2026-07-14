@@ -15,11 +15,14 @@
 #   shopify theme push --theme <ID> --only "templates/product.r-pdp.json"
 
 [environments.dev]
-store = "rocky-mountain-soap"
+store = "rocky-test-store"
 # No ignore list: the dev theme needs templates + config to render the storefront.
 
+[environments.production]
+store = "rocky-soap-development"
+
 [environments.staging]
-store = "rocky-mountain-soap"
+store = "rocky-soap-development"
 # Code-only deploy to a duplicate of the live theme. Merchant-owned JSON (theme
 # editor state) stays untouched on the target theme:
 #   - templates/*.json            page layouts + per-section settings
