@@ -145,12 +145,13 @@ grep.
 
 ## Known state / gotchas (update as encountered)
 
-1. **First exercise is pending:** the v4.1.1 engine diff (9 files; `events.js` −191
-   lines restructured into upstream's standard-events system, `morph.js` ±285,
-   `section-renderer.js` +79, …) was deliberately NOT taken in the 2026-07
-   history-only merge. See the manifest changelog PENDING row. It needs the full
-   Phase 2 treatment — especially the events.js restructure vs Rocky's
-   v3.5.1-content feature JS.
+1. **Two files are held at v3.5.1 content** (from the 2026-07 v4.1.1 sync):
+   `events.js` (v4 deleted the variant/cart/filter/discount event classes that 21
+   Rocky-held files import — unblock when the cart/product feature JS is rebuilt on
+   standard-events) and `theme-editor.js` (v4 removes the cart-drawer editor
+   auto-open entry Rocky's v3.5.1 drawer needs). **Diff these two from
+   `adoption-baseline-v3.5.1`, not from the last-synced ref**, or their pending
+   changes become invisible. See the manifest changelog.
 2. **Upstream v4.x is palette-based; Rocky is scheme-based.** Engine files are
    theming-agnostic, but any engine change referencing palette settings or the
    `color-palette` snippet must be reviewed against Rocky's kept scheme system.
