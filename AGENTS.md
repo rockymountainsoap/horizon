@@ -762,9 +762,17 @@ Whole-tree upstream merges are retired. When Shopify releases a new Horizon vers
 
 ## Deploy Discipline
 
-- Use `shopify theme dev` for local preview
-- Push to a development theme with `shopify theme push --development`
-- Gate production pushes behind a full cross-browser review on a preview theme
+CLI flags live in `shopify.theme.toml` environments (`.shopifyignore` is retired —
+it applied to `theme dev` too and stripped templates from the dev theme, 404ing
+every page):
+
+- Local preview: `shopify theme dev -e dev` (full tree, no ignores)
+- Deploy: duplicate the live theme (`shopify theme duplicate`), then
+  `shopify theme push -e staging --theme <ID>` — the environment's ignore list
+  keeps merchant-owned JSON (templates, section groups, settings_data) untouched
+- Seed a brand-new JSON file past the ignores: one-off
+  `shopify theme push --theme <ID> --only "<path>"`
+- Gate production behind a full cross-browser review on the preview theme
 - Never push directly to the live theme during active development
 
 ---

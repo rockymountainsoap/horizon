@@ -1,0 +1,35 @@
+# Shopify CLI environments — per-command flags, replacing .shopifyignore.
+#
+# Why: .shopifyignore applied to `theme dev` as well as `theme push`. Ignoring
+# templates/* meant the development theme was uploaded with no templates at all,
+# 404ing every page. Environments scope the ignore rules to pushes only.
+#
+# Usage:
+#   shopify theme dev  -e dev                      # local dev, full tree, no 404s
+#   shopify theme push -e staging --theme <ID>     # code-only push to a live duplicate
+#   shopify theme list                             # find theme IDs
+#   shopify theme duplicate                        # script the "duplicate live" step
+#
+# Seeding a brand-new template/section-group JSON that the staging ignores would
+# block (one-off, bypasses the environment):
+#   shopify theme push --theme <ID> --only "templates/product.r-pdp.json"
+
+[environments.dev]
+store = "rocky-mountain-soap"
+# No ignore list: the dev theme needs templates + config to render the storefront.
+
+[environments.staging]
+store = "rocky-mountain-soap"
+# Code-only deploy to a duplicate of the live theme. Merchant-owned JSON (theme
+# editor state) stays untouched on the target theme:
+#   - templates/*.json            page layouts + per-section settings
+#   - sections/*.json             header/footer group configuration
+#   - config/settings_data.json   global theme settings (colour schemes etc.)
+# Pass the duplicate's ID per run (--theme <ID>), or pin `theme = "<ID>"` here
+# if you keep a long-lived staging theme.
+ignore = [
+  "templates/*.json",
+  "templates/**/*.json",
+  "config/settings_data.json",
+  "sections/*.json",
+]

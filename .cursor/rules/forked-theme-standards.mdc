@@ -282,9 +282,12 @@ Whole-tree upstream merges are retired. When Shopify releases a new Horizon vers
 
 ## 13. Deploy Discipline
 
-- **Never push directly to the live theme** during active development. Use
-  `shopify theme dev` for local preview, or push to a development theme
-  (`shopify theme push --development`).
+- **Never push directly to the live theme** during active development.
+- CLI flags are defined in `shopify.theme.toml` environments: `shopify theme dev
+  -e dev` for local preview (full tree); `shopify theme push -e staging --theme
+  <ID>` for code-only deploys to a live-theme duplicate (merchant-owned JSON is
+  ignored by the environment). `.shopifyignore` is retired — do not re-add it;
+  it applies to `theme dev` and breaks the dev storefront.
 - Gate production pushes behind at least one full cross-browser review on a preview
   theme.
 
