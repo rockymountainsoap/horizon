@@ -15,8 +15,11 @@
 *.sublime-workspace
 # Cursor/Claude session data (auto-generated, local only)
 .claude/*
-# …but track shared, version-controlled skills (e.g. /upstream-merge)
+# …but track shared, version-controlled skills (e.g. /engine-sync)
 !.claude/skills/
+# …and the team-wide hook config + hook scripts (engine-manifest protection)
+!.claude/settings.json
+!.claude/hooks/
 
 .cursor/temp/
 

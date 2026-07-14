@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  theme-check:
+    name: Theme Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run theme-check (errors only)
+        # Noise checks are disabled in .theme-check.yml, so a clean tree
+        # reports zero errors and any error here is real.
+        run: npx -y @shopify/cli theme check --fail-level error
+
+  import-graph:
+    name: Importmap Resolution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every @theme import resolves in an importmap
+        run: bash scripts/check-importmap.sh
+
+  engine-manifest-guard:
+    name: Engine Manifest Guard
+    # PRs only: pushes to main don't have a stable base to diff against.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tracked engine files require a manifest update
+        # WS7 ownership model: the files listed in the engine-manifest table
+        # sync from upstream Horizon and must not be patched casually. Any PR
+        # touching one must also touch the manifest doc (changelog/table entry)
+        # so the change is a recorded, deliberate decision.
+        run: |
+          manifest=".cursor/references/engine-manifest.md"
+          tracked=$(grep -oE '^\| `assets/[a-z0-9.-]+\.js`' "$manifest" | tr -d '|` ')
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+
+          touched_tracked=$(comm -12 <(printf '%s\n' "$tracked" | sort) <(printf '%s\n' "$changed" | sort))
+          if [ -n "$touched_tracked" ]; then
+            if ! printf '%s\n' "$changed" | grep -qxF "$manifest"; then
+              echo "FAIL: this PR modifies TRACKED engine-manifest files without updating $manifest:" >&2
+              printf '  %s\n' $touched_tracked >&2
+              echo "Tracked files sync from upstream via the engine-sync skill; record the change" >&2
+              echo "(sync changelog row or '// r:' patch entry) in the manifest, or revert." >&2
+              exit 1
+            fi
+            echo "Tracked files changed WITH a manifest update - OK:"
+            printf '  %s\n' $touched_tracked
+          else
+            echo "No tracked engine files touched."
+          fi

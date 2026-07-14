@@ -69,6 +69,16 @@ first engine sync.
    or split existing ones. Adding to the manifest is a deliberate decision — record
    it in the changelog with rationale. Removing (e.g. after a Rocky rebuild replaces
    a module) likewise.
+4. **Mechanical enforcement** (both read the table above live — keep its
+   `| \`assets/….js\`` row format stable):
+   - A Claude Code PreToolUse hook (`.claude/hooks/protect-engine-manifest.sh`,
+     wired in `.claude/settings.json`) blocks agent Edit/Write on tracked files.
+     The engine-sync skill's `git checkout` path is unaffected. Override for a
+     manifest-documented patch: `ENGINE_MANIFEST_ALLOW_EDIT=1` or `/hooks`.
+   - CI (`.github/workflows/ci.yml`): theme-check at `--fail-level error`,
+     `scripts/check-importmap.sh` (every `@theme/*` import must resolve), and a
+     PR guard failing any PR that touches a tracked file without updating this
+     manifest.
 
 ## Sync changelog
 

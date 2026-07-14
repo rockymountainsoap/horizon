@@ -11,10 +11,30 @@
 # strict EN↔FR parity becomes a requirement, set `enabled: true` and run
 # `shopify theme check --auto-correct` to backfill missing keys.
 
+# ValidSchemaTranslations (~3800) and TranslationKeyExists (~160) are documented
+# false positives in this repo: the keys exist and Shopify's runtime resolves
+# them (see .claude/skills/engine-sync/SKILL.md gotchas). They drowned out real
+# signal, so they're disabled — which also lets CI run `--fail-level error`
+# meaningfully (a clean tree reports zero errors).
+#
+# apps/ and workers/ are not theme code (app extensions, Cloudflare Workers);
+# theme-check incidentally linted them and reported schema/asset errors that
+# belong to those projects' own tooling.
+
 extends: theme-check:recommended
+
+ignore:
+  - apps/**
+  - workers/**
 
 MatchingTranslations:
   enabled: false
 
 MatchingSchemaTranslations:
+  enabled: false
+
+ValidSchemaTranslations:
+  enabled: false
+
+TranslationKeyExists:
   enabled: false
