@@ -88,13 +88,11 @@ All theme file patches are committed and protected. No manual editing is require
 | `templates/search.json` | Same changes as `collection.json` |
 | `locales/en.default.schema.json` | Added schema label keys: `variant_buttons`, `hide_quick_add`, pill style settings |
 
-### `.gitattributes` protection
+### `.gitattributes` protection (obsolete)
 
-All modified and new files are marked `merge=ours` in `.gitattributes` so upstream Horizon pulls do not overwrite them. One-time per developer machine:
-
-```bash
-git config merge.ours.driver true
-```
+> **WS7 (2026-07):** the `merge=ours` registry and whole-tree upstream merges are
+> retired — these files are plainly Rocky-owned and no registration is needed. See
+> `.cursor/plans/WS7-frontend-rework-adr.md`. The historical steps below no longer apply.
 
 ---
 

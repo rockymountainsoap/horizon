@@ -6,9 +6,9 @@ This file is the authoritative entry point for any AI agent working in this code
 
 ## What This Codebase Is
 
-This is **Rocky's production Shopify theme** — a managed fork of [Shopify Horizon](https://github.com/Shopify/horizon). The upstream theme receives ongoing updates from Shopify. Every decision made here must balance Rocky's customizations against the ability to pull those updates cleanly.
+This is **Rocky's production Shopify theme** — originally a managed fork of [Shopify Horizon](https://github.com/Shopify/horizon), now operating under the **WS7 ownership-tier model** (2026-07): the repo is **Rocky-owned by default**, and upstream sync is opt-in for a small engine manifest. Rocky is building a fully custom front-end on top of Horizon's runtime engine (Component framework, morph, section renderer, events, utilities).
 
-**The single most important constraint:** Rocky-owned code must never overwrite upstream code. The `r-` prefix enforces this at the file system and CSS level. When in doubt, create a new `r-*` file rather than touching an existing one.
+**The single most important constraint:** the 14 engine files listed in `.cursor/references/engine-manifest.md` are TRACKED from upstream and must not be patched directly — extend them by composition (`r-*.js` modules). Everything else is Rocky-owned: edit freely, no registration, no markers. Full rationale: `.cursor/plans/WS7-frontend-rework-adr.md`.
 
 ---
 
@@ -22,14 +22,12 @@ The primary rule set lives here — **always read it first**:
 
 This rule has `alwaysApply: true` and governs every file in the repo. It is the canonical reference for:
 
-- Whether to create a new file or modify an existing one
-- How to name files, CSS classes, CSS variables, custom elements, and locale keys
-- The CSS architecture (`r-base.css`, `{% stylesheet %}`, upstream tokens)
-- Colour scheme strategy (3 schemes, `scheme-1/2/3`)
-- How to modify upstream files safely (`.gitattributes` + `{%- # r: -%}` markers)
-- Template alternates vs editing upstream templates
+- The ownership-tier model (TRACK engine manifest / ADOPT everything else / REBUILD-DROP)
+- How to name files, CSS classes, CSS variables, custom elements, and locale keys (`r-` provenance prefix)
+- The CSS architecture (`r-base.css`, `{% stylesheet %}`, design tokens)
+- Colour scheme strategy (3 schemes, `scheme-1/2/3` — Rocky kept schemes; upstream v4.x moved to palettes)
 - App integration patterns (Loop, Judge.me, Klaviyo)
-- Upstream update protocol and deploy discipline
+- Engine sync protocol and deploy discipline
 
 All other rules in `.cursor/rules/` apply to their respective file types. The forked-theme-standards override them where there is any conflict.
 
@@ -44,40 +42,32 @@ horizon/                    # repo root = Horizon theme (Rocky fork)
 ├── workers/              # Edge workers (e.g. Cloudflare) — not theme code
 │   └── native_worker/    # Wishlist API entry: native_worker.js
 ├── assets/           # CSS, JS, images
-│   ├── base.css          ← UPSTREAM — do not edit
-│   ├── r-base.css        ← Rocky shared stylesheet (Rocky-owned)
-│   └── r-*.js / r-*.css  ← Rocky-specific assets
-├── blocks/           # Theme blocks
-│   └── r-*.liquid        ← Rocky blocks (Rocky-owned)
+│   ├── component.js / morph.js / events.js / … ← ENGINE MANIFEST (14 tracked files — do not patch; see .cursor/references/engine-manifest.md)
+│   ├── base.css          ← adopted (Rocky-owned; edit deliberately, prefer r-base.css)
+│   ├── r-base.css        ← Rocky shared stylesheet
+│   ├── *.js              ← adopted feature JS (Rocky-owned; edit freely)
+│   └── r-*.js / r-*.css  ← Rocky-authored assets
+├── blocks/           # Theme blocks — all Rocky-owned (r-* = Rocky-authored, rest adopted)
 ├── config/
-│   ├── settings_data.json   ← merge=ours (store settings + 3 colour schemes)
-│   └── settings_schema.json ← merge=ours (theme editor schema)
+│   ├── settings_data.json   ← Rocky-owned (store settings + 3 colour schemes)
+│   └── settings_schema.json ← Rocky-owned (theme editor schema, scheme-based)
 ├── layout/
-│   └── theme.liquid      ← merge=ours (global shell)
+│   └── theme.liquid      ← Rocky-owned (global shell)
 ├── locales/
-│   ├── en.default.json        ← merge=ours (storefront copy, rocky.* namespace)
-│   └── en.default.schema.json ← merge=ours (editor labels, r_* keys)
-├── sections/
-│   ├── header.liquid     ← UPSTREAM but merge=ours (customised)
-│   ├── r-*.liquid        ← Rocky sections (Rocky-owned)
-│   └── *.liquid          ← All other upstream sections
-├── snippets/
-│   ├── stylesheets.liquid ← merge=ours (loads r-base.css)
-│   ├── r-*.liquid         ← Rocky snippets (Rocky-owned)
-│   └── *.liquid           ← Upstream snippets
-├── templates/
-│   ├── product.json          ← UPSTREAM but merge=ours
-│   ├── product.r-pdp.json    ← Rocky alternate template
-│   └── *.r-*.json            ← Rocky alternate templates
-├── .gitattributes        ← Merge strategy (keep reading)
+│   ├── en.default.json        ← storefront copy (rocky.* namespace for Rocky keys)
+│   └── en.default.schema.json ← editor labels (r_* keys for Rocky entries)
+├── sections/         # All Rocky-owned (r-* = Rocky-authored, rest adopted)
+├── snippets/         # All Rocky-owned (r-* = Rocky-authored, rest adopted)
+├── templates/        # All Rocky-owned; *.r-*.json = alternate layouts
+├── .gitattributes        ← comment-only pointer (merge=ours registry retired)
 ├── .cursor/
 │   ├── rules/            ← All cursor rules (MDC files)
-│   ├── references/     ← Living reference documents
-│   └── plan/             ← Workstream plans (WS-prefixed filenames; see below)
+│   ├── references/       ← Living reference documents (incl. engine-manifest.md)
+│   └── plans/            ← Workstream plans (WS-prefixed filenames; see below)
 └── AGENTS.md             ← This file
 ```
 
-**Rocky-owned files are always prefixed `r-`.** Any file without that prefix is upstream Horizon. Never create a non-`r-` file in `sections/`, `blocks/`, `snippets/`, or `assets/`.
+**The `r-` prefix marks Rocky-authored files (provenance).** Un-prefixed theme files are adopted from Horizon and equally Rocky-owned — edit them freely. New Rocky files always get the `r-` prefix; adopted files keep their names until rebuilt.
 
 **Monorepo:** **`apps/`** is for the Shopify app (`rocky-wishlist-app` and its `extensions/`, including `customer-account-wishlist`). **`workers/native_worker/`** holds the Cloudflare Worker entry **`native_worker.js`**. Those trees are not Horizon theme files — see `apps/README.md` and `workers/native_worker/README.md`. The Worker authenticates with the Shopify Admin API using the **Client Credentials Grant** (OAuth 2.0 §4.4) — tokens are auto-acquired and cached, no manual OAuth install step needed. See `workers/native_worker/README.md` for full setup.
 
@@ -85,9 +75,9 @@ horizon/                    # repo root = Horizon theme (Rocky fork)
 
 ## Plan documents (workstreams)
 
-Planning docs, work-back notes, and agent-oriented task breakdowns belong in **`.cursor/plan/`** — keep them out of the theme root and out of ad-hoc folders so agents and humans can find context quickly.
+Planning docs, work-back notes, and agent-oriented task breakdowns belong in **`.cursor/plans/`** — keep them out of the theme root and out of ad-hoc folders so agents and humans can find context quickly.
 
-**Location:** `.cursor/plan/`
+**Location:** `.cursor/plans/`
 
 **Naming — WS (workstream) prefix**
 
@@ -97,7 +87,7 @@ Planning docs, work-back notes, and agent-oriented task breakdowns belong in **`
 **Examples**
 
 ```
-.cursor/plan/
+.cursor/plans/
 ├── WS0-theme-shell.md
 ├── WS1-global-navigation.md
 ├── WS2-homepage-plp-pdp.md
@@ -110,14 +100,14 @@ For related docs under one WS, keep the same prefix and vary the slug: `WS2-plp-
 **Workflow**
 
 - When starting or updating a workstream, add or revise its plan here.
-- Before implementing WS-scoped work, agents should check `.cursor/plan/` for the relevant **`WS*`** file(s).
+- Before implementing WS-scoped work, agents should check `.cursor/plans/` for the relevant **`WS*`** file(s).
 - Link to these files from issues or PRs when helpful.
 
 ---
 
-## The `r-` Prefix — The Golden Rule
+## The `r-` Prefix — Provenance Convention
 
-Everything Rocky creates uses the `r-` prefix. This is not a stylistic choice — it is a hard merge-safety constraint.
+Everything Rocky **authors** uses the `r-` prefix. Since WS7 this is a provenance signal (Rocky-authored vs adopted-from-Horizon), not a merge-safety constraint — whole-tree merges are retired. Adopted files keep their existing names until rebuilt.
 
 | What | Pattern | Example |
 |---|---|---|
@@ -140,24 +130,19 @@ Everything Rocky creates uses the `r-` prefix. This is not a stylistic choice �
 ## Decision Tree — Before Writing Any Code
 
 ```
-Is this a net-new Rocky feature?
+Is the file listed in .cursor/references/engine-manifest.md? (14 tracked engine JS files)
 │
-├── YES: Does any existing upstream file cover this surface?
-│    ├── NO  → Create r-* file. Done.
-│    └── YES → Is this an architecture-critical surface?
-│              (collection grid, cart drawer, header, global product card,
-│               main shell, etc. — see "Architecture-critical surfaces" below)
-│              ├── YES → Modify upstream file directly with {%- # r: -%} markers.
-│              │         File should already be merge=ours; if not, add it.
-│              │         Net-new dependencies (e.g. a new r-block) still use r-*.
-│              └── NO  → Can I compose a new r-* section/block on top of it?
-│                        ├── YES → Create r-* file using content_for 'blocks'. Done.
-│                        └── NO  → Modify upstream file (see §5 of forked-theme-standards).
+├── YES (TRACK) → Do NOT patch it.
+│    ├── Extend by composition: new r-*.js module importing @theme/*.
+│    └── Patch truly unavoidable → `// r:` comment + record in the manifest table.
 │
-└── NO (bug fix / upstream improvement):
-     ├── Bug is in an upstream file and upstream hasn't fixed it
-     │    → Register file in .gitattributes, fix it, mark with {%- # r: -%}
-     └── Bug is in an r-* file → fix freely
+└── NO → The file (or the file you'd create) is Rocky-owned.
+     ├── Net-new feature → create an r-* file (section/block/snippet/asset).
+     ├── Change to an adopted file → edit it directly. No markers, no registration.
+     │    (Optional: check `git diff adoption-baseline-v3.5.1..upstream/main -- <file>`
+     │     for upstream fix ideas — reference, never merge.)
+     └── Surface slated REBUILD/DROP in WS7-feature-js-triage.md
+          → prefer building the Rocky replacement over investing in the old file.
 ```
 
 ---
@@ -189,52 +174,17 @@ templates/page.r-about.json         ← About Us page
 templates/article.r-editorial.json  ← Journal article
 ```
 
-### Modifying an Upstream File
+### Modifying an Adopted File
 
-There are two paths, and the right one depends on whether the file is **architecture-critical** (see below):
+Adopted files (everything not in the engine manifest) are Rocky-owned — **edit them directly.** No `.gitattributes` registration, no `{%- # r: -%}` markers, no ceremony. Keep changes composable where it helps (blocks, `content_for 'blocks'` insertion points), but that's a design preference, not a protocol.
 
-**Path A — Architecture-critical surfaces (preferred for these files).**
-Modify the upstream file directly. Forking these into parallel `r-*` alternates creates an ongoing merge burden every time Shopify ships an upstream improvement, and it splits site behaviour across two implementations.
+Existing `{%- # r: -%}` markers from the pre-WS7 era are historical provenance — leave them in place; never add new ones.
 
-1. Confirm the file is `merge=ours` in `.gitattributes` (add it if not, and add it to `.cursor/references/gitattributes-merge-strategy.md`).
-2. Make the change directly in the upstream file. Wrap **every** Rocky addition in markers so the diff is trivially auditable on upstream merges:
-   ```liquid
-   {%- # r: brief description -%}
-   …Rocky additions…
-   {%- # r: end -%}
-   ```
-3. Net-new building blocks the change depends on (e.g. a new `r-inflow-card` block) still follow the `r-` prefix rule and live in their own files.
-4. Keep additions minimal and composable — prefer hooks (block-type registrations, `content_for 'blocks'` insertion points) over inline logic.
+**Inline-comment syntax — avoid `Syntax error in tag '#'`.** `{%- # … -%}` is Liquid's *line-oriented* comment tag: if a comment wraps onto multiple lines, **every** line must start with `#`. Shopify's upload validator throws on violations that theme-check misses locally. Keep `{%- # … -%}` comments single-line; use `{% comment %}` blocks for longer notes.
 
-**Inline-comment syntax — avoid `Syntax error in tag '#'`.** `{%- # … -%}` is Liquid's *line-oriented* comment tag: if a marker wraps onto multiple lines, **every** line must start with `#`. Keep `# r:` markers to a single line; for a longer rationale, pair a one-line marker with a `{% comment %}` block:
+### Modifying a Tracked Engine File
 
-```liquid
-{%- # r: insulate bumpers from cart morphs -%}
-{% comment %}
-  The Show More button's server `hidden` attribute can't be re-applied
-  between JS init passes (same protection as the populated-cart bumpers).
-{% endcomment %}
-```
-
-**Path B — Non-critical upstream files (last resort).**
-For one-off bug fixes or small modifications to non-critical files, prefer creating an `r-*` alternate. If you must edit upstream:
-
-1. Add the file to `.gitattributes` as `merge=ours`
-2. Add it to the table in `.cursor/references/gitattributes-merge-strategy.md`
-3. Mark every change with `{%- # r: -%}` markers as in Path A.
-
-#### Architecture-critical surfaces
-
-These are the files Rocky modifies directly rather than forking. The list is small and high-leverage — adding to it requires a deliberate decision (capture it in the relevant `WS*` plan).
-
-- `sections/main-collection.liquid` — collection grid (PLP)
-- `sections/header.liquid` — global header
-- `snippets/header-actions.liquid` — header actions (cart, search, account, wishlist)
-- `blocks/_product-card.liquid` — global product card
-- `layout/theme.liquid` — global shell
-- `snippets/stylesheets.liquid` / `snippets/scripts.liquid` — global asset entry points
-
-If you are about to fork one of these into an `r-*` parallel and the change is anything more than additive composition, stop and use Path A instead.
+Don't. Extend by composition — a new `r-*.js` module importing `@theme/*`. If a patch is truly unavoidable: mark it with a `// r:` comment, record it in the engine-manifest table (it becomes a hand-reapply obligation on every engine sync), and treat that as a debt to remove.
 
 ---
 
@@ -277,7 +227,7 @@ If you are about to fork one of these into an `r-*` parallel and the change is a
 { "name": "t:names.r_journal_index" }
 ```
 
-Both locale files are `merge=ours`. Never add Rocky keys to upstream key namespaces.
+Both locale files are Rocky-owned. Keep Rocky keys in the `rocky.*` / `r_*` namespaces for findability.
 
 ---
 
@@ -304,18 +254,9 @@ Metaobject types are prefixed `rocky_`: `rocky_campaign_issue`, `rocky_store_loc
 
 ---
 
-## The `.gitattributes` File
+## The `.gitattributes` File (historical)
 
-`merge=ours` tells Git to keep our version of a file when merging from upstream Horizon. Registered files include: config, core layout, modified upstream sections, all templates, primary locales, key snippets, and `r-base.css`.
-
-**Before modifying any upstream file:** add it to `.gitattributes` and the reference table at `.cursor/references/gitattributes-merge-strategy.md`.
-
-**One-time developer setup:**
-```bash
-git config merge.ours.driver true
-```
-
-Full details: `.cursor/references/gitattributes-merge-strategy.md`
+The `merge=ours` registry is **retired** (WS7). `.gitattributes` is now a comment-only pointer file. Do not re-add merge entries — ownership is recorded in the WS7 ADR and the engine manifest, and upstream sync happens via manifest-scoped cherry-picks, never `git merge`. The old registry's rationale survives in git history and the tombstoned `.cursor/references/gitattributes-merge-strategy.md`.
 
 ---
 
@@ -325,9 +266,9 @@ Full details: `.cursor/references/gitattributes-merge-strategy.md`
 |---|---|
 | Loop Subscriptions | App block inside `r-pdp-buy-button.liquid` or equivalent Rocky block |
 | Judge.me | App block inside `r-pdp-social-proof.liquid` — never in upstream sections |
-| Klaviyo | App blocks in Rocky sections; global script goes in `snippets/scripts.liquid` (register as `merge=ours` first) |
+| Klaviyo | App blocks in Rocky sections; global script goes in `snippets/scripts.liquid` (Rocky-owned — edit directly) |
 
-General rule: `{ "type": "@app" }` in section schemas enables app blocks. Never embed third-party Liquid/JS directly into upstream files.
+General rule: `{ "type": "@app" }` in section schemas enables app blocks. Keep third-party Liquid/JS contained in app blocks within Rocky sections rather than scattering it through the theme.
 
 ---
 
@@ -808,16 +749,14 @@ next upgrade path is a bulk operation or a webhook-maintained aggregate.
 
 ---
 
-## Upstream Update Protocol
+## Engine Sync Protocol (replaces the Upstream Update Protocol)
 
-When Shopify releases a new Horizon version:
+Whole-tree upstream merges are retired. When Shopify releases a new Horizon version:
 
-1. Pull upstream into a **staging branch** — never directly into the working branch
-2. Diff every `merge=ours` file against the new upstream version — cherry-pick bug fixes
-3. Audit every `{%- # r: -%}` marker in upstream files we touched — ensure they survive
-4. Accept non-conflicting upstream files freely — they don't touch Rocky-owned code
-5. Test in a **development/preview theme** before merging to main
-6. Update `.gitattributes` for any newly customized files
+1. Run the **engine-sync skill** (`.claude/skills/engine-sync/SKILL.md`)
+2. It diffs only the 14 engine-manifest files from the last-synced ref, compat-reviews each change, and applies via `git checkout upstream/<ref> -- <file>` — never `git merge`
+3. Verify with theme-check + a preview theme, then record the sync in the manifest changelog and advance the last-synced ref
+4. For ADOPTED files, upstream fixes are consulted manually when worth it: `git diff adoption-baseline-v3.5.1..upstream/main -- <file>` (reference, never merge)
 
 ---
 
@@ -857,16 +796,20 @@ These rules apply automatically to their respective file types. The forked-theme
 
 | Question | Answer |
 |---|---|
-| Should I edit an upstream section? | Depends — for architecture-critical surfaces (e.g. `main-collection.liquid`, `header.liquid`), yes via Path A with `{%- # r: -%}` markers. For everything else, create `sections/r-*.liquid`. |
-| Should I edit `templates/product.json`? | No — create `templates/product.r-*.json` |
+| Can I edit this file? | Yes, unless it's one of the 14 files in `.cursor/references/engine-manifest.md` — those are tracked from upstream; extend via `r-*.js` composition instead |
+| Should I edit an adopted section (e.g. `sections/hero.liquid`)? | Yes — edit directly. No markers, no registration. |
+| Should I edit `templates/product.json`? | Yes — templates are Rocky-owned. Alternates (`product.r-*.json`) are for offering additional layouts, not merge safety. |
+| How do I pull a new Horizon release? | Run the engine-sync skill — manifest-scoped cherry-pick, never `git merge upstream/main` |
+| How do I check upstream's fix for an adopted file? | `git diff adoption-baseline-v3.5.1..upstream/main -- <file>` — read it, hand-port if worth it |
+| Do new files need the `r-` prefix? | Yes — it marks Rocky-authored files (provenance). Adopted files keep their names until rebuilt. |
 | Where does section CSS go? | Inside the section's own `{% stylesheet %}` tag |
 | Where does shared CSS go? | `assets/r-base.css` only if used in 2+ files |
+| Can I edit `assets/base.css`? | Yes (it's adopted), but prefer `r-base.css`/`{% stylesheet %}`; edit base.css deliberately |
 | Where do colour tokens for Journal go? | `.color-scheme-3 { --r-color-journal-bg: … }` in `r-base.css` |
 | Can I use `#hex` in CSS? | Never — use `var(--color-*)` or `var(--r-*)` |
-| Can I define `--color-*` in Rocky CSS? | No — that namespace belongs to upstream |
-| Can I create scheme-4? | No — Rocky uses scheme-1, 2, 3 only |
+| Can I define `--color-*` in Rocky CSS? | No — that's the reserved token namespace; use `--r-*` |
+| Can I create scheme-4 or adopt upstream's v4 palettes? | No — Rocky uses scheme-1/2/3; the palette system was deliberately not taken (see ADR) |
 | Should I add Rocky copy to an existing locale namespace? | No — use `rocky.*` namespace |
 | Can I add custom elements without `r-` prefix? | No — always `customElements.define('r-*', ...)` |
-| I need to modify upstream — what first? | Add to `.gitattributes` + reference doc, then edit with `{%- # r: -%}` markers |
 | Where do Rocky metafields live? | `rocky` namespace in Shopify admin |
-| Where do planning / workstream docs go? | `.cursor/plan/` with a **`WS*`** workstream prefix on each filename (e.g. `WS3-pdp-routine.md`) |
+| Where do planning / workstream docs go? | `.cursor/plans/` with a **`WS*`** workstream prefix on each filename (e.g. `WS3-pdp-routine.md`) |

@@ -33,6 +33,12 @@ If you're building a theme for the Shopify Theme Store, then do not use Horizon 
 
 ## Staying up to date with Horizon changes
 
+> **⚠️ Rocky fork notice:** the instructions below are upstream Horizon's generic
+> guidance and **do not apply to this repo**. Rocky retired whole-tree upstream
+> merges (WS7, 2026-07) — never run `git pull upstream main` here. Upstream sync is
+> limited to the engine manifest via `.claude/skills/engine-sync/SKILL.md`. See
+> `.cursor/plans/WS7-frontend-rework-adr.md`.
+
 Say you're building a new theme off Horizon but you still want to be able to pull in the latest changes, you can add a remote `upstream` pointing to this Horizon repository.
 
 1. Navigate to your local theme folder.
