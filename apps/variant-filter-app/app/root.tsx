@@ -8,6 +8,7 @@ import {
   ScrollRestoration,
   useRouteError,
 } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 export const links: LinksFunction = () => [
@@ -40,6 +41,16 @@ export default function App() {
  */
 export function ErrorBoundary() {
   const error = useRouteError();
+
+  // Shopify's library communicates by THROWING responses (e.g. the 200
+  // App Bridge session-token bounce page). If one bubbles past a route
+  // boundary, render it via boundary.error so its script executes instead of
+  // painting it as text — which would dead-end embedded auth.
+  try {
+    return boundary.error(error);
+  } catch {
+    // Not a Shopify-thrown response — fall through to the friendly shell.
+  }
 
   let title = "Something went wrong";
   let detail =

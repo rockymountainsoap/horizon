@@ -4,3 +4,4 @@ build/
 .wrangler/
 .env
 app/types/admin-*.schema.json
+.dev.vars
