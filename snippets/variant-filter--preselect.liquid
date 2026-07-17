@@ -90,9 +90,12 @@
             if vf_rule.maxMl == blank or vf_rule.maxMl == 0
               assign vf_pass = true
             else
-              assign vf_numeric = vf_value | plus: 0
-              # Mirrors filter.liquid: non-numeric strings (plus:0 == 0) pass.
-              if vf_numeric <= vf_rule.maxMl
+              # Mirrors filter.liquid's numeric round-trip guard: only
+              # genuinely numeric ml values can pass an ml-based rule.
+              assign vf_clean = vf_value | strip | downcase | remove: 'ml' | strip
+              assign vf_numeric = vf_clean | plus: 0
+              assign vf_roundtrip = vf_numeric | append: ''
+              if vf_clean == vf_roundtrip and vf_numeric <= vf_rule.maxMl
                 assign vf_pass = true
               endif
             endif

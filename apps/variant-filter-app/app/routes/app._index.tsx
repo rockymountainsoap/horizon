@@ -1,13 +1,19 @@
-import { useState } from "react";
-import { json } from "@remix-run/cloudflare";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { useEffect, useState } from "react";
+import { data } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import {
   Link,
   useActionData,
   useLoaderData,
   useNavigation,
+  useSearchParams,
   useSubmit,
-} from "@remix-run/react";
+} from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   Banner,
   BlockStack,
@@ -39,29 +45,6 @@ interface CollectionRow {
   rule: ReturnType<typeof parseRule>;
 }
 
-interface PageInfo {
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  startCursor: string;
-  endCursor: string;
-}
-
-interface ListCollectionsResponse {
-  data?: {
-    collections: {
-      pageInfo: PageInfo;
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          handle: string;
-          metafield: { id: string; value: string } | null;
-        };
-      }>;
-    };
-  };
-}
-
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const { admin } = await authenticate(request, context);
 
@@ -69,10 +52,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const after = url.searchParams.get("after") ?? undefined;
   const before = url.searchParams.get("before") ?? undefined;
 
+  // Relay pagination: `before` pairs with `last`, `after` with `first` —
+  // combining `first` with `before` is rejected by the API.
   const response = await admin.graphql(LIST_COLLECTIONS, {
-    variables: { first: 50, after, before },
+    variables: before ? { last: 50, before } : { first: 50, after },
   });
-  const { data } = (await response.json()) as ListCollectionsResponse;
+  const { data } = await response.json();
 
   if (!data) {
     throw new Response("Failed to load collections", { status: 502 });
@@ -88,30 +73,23 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     })
   );
 
-  return json({ collections, pageInfo: data.collections.pageInfo });
+  return { collections, pageInfo: data.collections.pageInfo };
 }
 
-interface DeleteResponse {
-  data?: {
-    metafieldsDelete: {
-      deletedMetafields: Array<{ ownerId: string }> | null;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
+// Ensure Shopify's reauth/CSP headers survive on responses thrown by
+// authenticate().
+export const headers: HeadersFunction = (headersArgs) =>
+  boundary.headers(headersArgs);
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-export async function action({
-  request,
-  context,
-}: ActionFunctionArgs): Promise<Response> {
+export async function action({ request, context }: ActionFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const form = await request.formData();
   const ownerId = String(form.get("ownerId") ?? "");
 
   if (!ownerId.startsWith("gid://shopify/Collection/")) {
-    return json<ActionResult>(
+    return data<ActionResult>(
       { ok: false, error: "Missing or invalid collection identifier." },
       { status: 400 }
     );
@@ -125,20 +103,20 @@ export async function action({
         ],
       },
     });
-    const { data } = (await res.json()) as DeleteResponse;
-    const userErrors = data?.metafieldsDelete?.userErrors ?? [];
+    const { data: resData } = await res.json();
+    const userErrors = resData?.metafieldsDelete?.userErrors ?? [];
 
     if (userErrors.length > 0) {
-      return json<ActionResult>(
+      return data<ActionResult>(
         { ok: false, error: userErrors[0].message },
         { status: 400 }
       );
     }
 
-    return json<ActionResult>({ ok: true });
+    return data<ActionResult>({ ok: true });
   } catch (err) {
     console.error("[variant-filter] DELETE_RULE failed:", err);
-    return json<ActionResult>(
+    return data<ActionResult>(
       { ok: false, error: "Could not reach Shopify to clear the rule." },
       { status: 502 }
     );
@@ -147,12 +125,21 @@ export async function action({
 
 export default function CollectionsIndex() {
   const { collections, pageInfo } = useLoaderData<typeof loader>();
-  const actionData = useActionData() as ActionResult | undefined;
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
   const isClearing = navigation.formMethod === "POST";
 
   const [pendingClear, setPendingClear] = useState<CollectionRow | null>(null);
+  const [successDismissed, setSuccessDismissed] = useState(false);
+
+  // A new submission should surface the next success banner again.
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      setSuccessDismissed(false);
+    }
+  }, [navigation.state]);
 
   function confirmClear() {
     if (!pendingClear) return;
@@ -160,17 +147,27 @@ export default function CollectionsIndex() {
     setPendingClear(null);
   }
 
+  // Build cursor links off the current URL so unrelated query params
+  // (e.g. host/shop in some embedded contexts) survive pagination.
+  function cursorUrl(direction: "after" | "before", cursor: string) {
+    const params = new URLSearchParams(searchParams);
+    params.delete("after");
+    params.delete("before");
+    params.set(direction, cursor);
+    return `?${params.toString()}`;
+  }
+
   const resourceName = { singular: "collection", plural: "collections" };
   const errorBanner =
     actionData && !actionData.ok ? actionData.error : undefined;
   const successBanner =
-    actionData?.ok === true && navigation.state === "idle";
+    actionData?.ok === true && navigation.state === "idle" && !successDismissed;
 
   return (
     <Page title="Variant Filter Rules">
       <BlockStack gap="400">
         {successBanner && (
-          <Banner tone="success" onDismiss={() => undefined}>
+          <Banner tone="success" onDismiss={() => setSuccessDismissed(true)}>
             Rule cleared. All variants will be shown again on that collection.
           </Banner>
         )}
@@ -243,10 +240,18 @@ export default function CollectionsIndex() {
         {(pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
           <InlineStack align="center">
             <Pagination
-              hasPrevious={pageInfo.hasPreviousPage}
-              previousURL={`?before=${pageInfo.startCursor}`}
-              hasNext={pageInfo.hasNextPage}
-              nextURL={`?after=${pageInfo.endCursor}`}
+              hasPrevious={pageInfo.hasPreviousPage && !!pageInfo.startCursor}
+              previousURL={
+                pageInfo.startCursor
+                  ? cursorUrl("before", pageInfo.startCursor)
+                  : undefined
+              }
+              hasNext={pageInfo.hasNextPage && !!pageInfo.endCursor}
+              nextURL={
+                pageInfo.endCursor
+                  ? cursorUrl("after", pageInfo.endCursor)
+                  : undefined
+              }
             />
           </InlineStack>
         )}

@@ -1,16 +1,20 @@
 name = "variant-filter-app"
-main = "server.ts"
-compatibility_date = "2025-01-01"
+main = "./workers/app.ts"
+compatibility_date = "2026-06-01"
 compatibility_flags = ["nodejs_compat"]
 
-[site]
-bucket = "./build/client"
+# Client assets are served as Workers Static Assets by the Cloudflare Vite
+# plugin (resolved config emitted into the build output; `wrangler deploy`
+# picks it up via .wrangler/deploy/config.json). The old Workers Sites [site]
+# bucket and kv-asset-handler are retired.
 
 # Secrets (set via `wrangler secret put <KEY>`):
 #   SHOPIFY_API_KEY
 #   SHOPIFY_API_SECRET
 #   SHOPIFY_APP_URL
-#   APP_URL = https://variant-filter-app.rocky-horizon-development.workers.dev
+
+[observability]
+enabled = true
 
 [[kv_namespaces]]
 # Create with: wrangler kv namespace create SESSION_KV
@@ -22,5 +26,3 @@ id = "a6a516d2496344e1b1de17dc819abc05"
 # Create with: wrangler kv namespace create SESSION_KV --preview
 binding = "SESSION_KV"
 id = "d6fe97a3576a4efcb96e17797639a7b8"
-
-

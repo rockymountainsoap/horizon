@@ -1,14 +1,14 @@
-import type { LinksFunction } from "@remix-run/cloudflare";
+import type { LinksFunction } from "react-router";
 import {
   isRouteErrorResponse,
   Links,
-  LiveReload,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
   useRouteError,
-} from "@remix-run/react";
+} from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 
 export const links: LinksFunction = () => [
@@ -28,7 +28,6 @@ export default function App() {
         <Outlet />
         <ScrollRestoration />
         <Scripts />
-        <LiveReload />
       </body>
     </html>
   );
@@ -36,12 +35,22 @@ export default function App() {
 
 /**
  * Top-level error boundary. Without this, any unhandled exception in a loader
- * or action surfaces as Remix's bare "Application Error" string. We render a
+ * or action surfaces as React Router's bare "Application Error" string. We render a
  * minimal HTML shell ourselves (Polaris isn't available outside `<AppProvider>`)
  * with enough info for the merchant to recover or report.
  */
 export function ErrorBoundary() {
   const error = useRouteError();
+
+  // Shopify's library communicates by THROWING responses (e.g. the 200
+  // App Bridge session-token bounce page). If one bubbles past a route
+  // boundary, render it via boundary.error so its script executes instead of
+  // painting it as text — which would dead-end embedded auth.
+  try {
+    return boundary.error(error);
+  } catch {
+    // Not a Shopify-thrown response — fall through to the friendly shell.
+  }
 
   let title = "Something went wrong";
   let detail =

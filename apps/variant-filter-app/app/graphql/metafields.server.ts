@@ -1,3 +1,13 @@
+import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
+// Type-only imports — the generated file declares TS enums that don't exist at
+// runtime, so enum members are referenced via literal casts below.
+import type {
+  MetafieldDefinitionCreateUserErrorCode,
+  MetafieldDefinitionInput,
+  MetafieldOwnerType,
+  MetafieldStorefrontAccessInput,
+} from "~/types/admin.types";
+
 export const REGISTER_DEFINITION = `#graphql
   mutation RegisterVariantFilterDefinition($definition: MetafieldDefinitionInput!) {
     metafieldDefinitionCreate(definition: $definition) {
@@ -15,32 +25,36 @@ export const REGISTER_DEFINITION = `#graphql
   }
 `;
 
-const DEFINITION_INPUT = {
+const DEFINITION_INPUT: MetafieldDefinitionInput = {
   namespace: "variant-filter",
   key: "rule",
   name: "Variant Filter Rule",
   description:
     "Defines which product variant option values to display in this collection. Managed by the Variant Filter app — do not edit manually.",
   type: "json",
-  ownerType: "COLLECTION",
-  access: { storefront: "PUBLIC_READ" },
+  ownerType: "COLLECTION" as MetafieldOwnerType,
+  access: { storefront: "PUBLIC_READ" as MetafieldStorefrontAccessInput },
 };
 
-export async function registerMetafieldDefinition(admin: {
-  graphql: (query: string, options?: { variables?: unknown }) => Promise<Response>;
-}): Promise<void> {
+export async function registerMetafieldDefinition(
+  admin: AdminApiContext
+): Promise<void> {
   const response = await admin.graphql(REGISTER_DEFINITION, {
     variables: { definition: DEFINITION_INPUT },
   });
-  const { data } = (await response.json()) as any;
-  const errors: { code: string; message: string }[] =
-    data?.metafieldDefinitionCreate?.userErrors ?? [];
+  const { data } = await response.json();
+  const errors = data?.metafieldDefinitionCreate?.userErrors ?? [];
 
   for (const error of errors) {
-    // ALREADY_EXISTS = definition was registered previously; TAKEN = metafield
-    // values already exist for this namespace+key without a formal definition.
+    // TAKEN = a definition already exists for this namespace+key;
+    // UNSTRUCTURED_ALREADY_EXISTS = metafield values already exist without a
+    // formal definition (replaced the pre-2026 ALREADY_EXISTS code).
     // Both mean a usable definition is in place — safe to continue.
-    if (error.code === "ALREADY_EXISTS" || error.code === "TAKEN") {
+    if (
+      error.code === ("TAKEN" as MetafieldDefinitionCreateUserErrorCode) ||
+      error.code ===
+        ("UNSTRUCTURED_ALREADY_EXISTS" as MetafieldDefinitionCreateUserErrorCode)
+    ) {
       console.log(`[variant-filter] Metafield definition already in place (${error.code}) — skipping.`);
       return;
     }

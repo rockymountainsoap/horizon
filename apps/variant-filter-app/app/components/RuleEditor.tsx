@@ -32,9 +32,16 @@ export function RuleEditor({ defaultValues, optionNames, errors = {} }: Props) {
   );
   const [label, setLabel] = useState(defaultValues?.label ?? "");
 
+  // Keep a saved rule editable even if its option no longer appears in the
+  // collection's products — otherwise the Select silently blanks the value.
+  const allOptionNames =
+    defaultValues?.option && !optionNames.includes(defaultValues.option)
+      ? [defaultValues.option, ...optionNames]
+      : optionNames;
+
   const optionChoices = [
     { label: "Select an option", value: "" },
-    ...optionNames.map((n) => ({ label: n, value: n })),
+    ...allOptionNames.map((n) => ({ label: n, value: n })),
   ];
 
   return (

@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { json, redirect } from "@remix-run/cloudflare";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { redirect } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import {
   Form,
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
-} from "@remix-run/react";
+} from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   Banner,
   BlockStack,
@@ -20,8 +25,8 @@ import {
 } from "@shopify/polaris";
 import { RuleEditor } from "~/components/RuleEditor";
 import {
+  GET_COLLECTION_PRODUCT_OPTIONS,
   GET_COLLECTION_WITH_RULE,
-  GET_PRODUCT_OPTIONS,
 } from "~/graphql/collections.server";
 import {
   DELETE_RULE,
@@ -32,43 +37,6 @@ import {
 import { FilterRuleSchema, parseRule } from "~/models/rule.server";
 import { authenticate } from "~/shopify.server";
 
-interface CollectionResponse {
-  data?: {
-    collection: {
-      id: string;
-      title: string;
-      handle: string;
-      metafield: { id: string; value: string } | null;
-    } | null;
-  };
-}
-
-interface ProductOptionsResponse {
-  data?: {
-    products: {
-      edges: Array<{ node: { options: Array<{ name: string }> } }>;
-    };
-  };
-}
-
-interface SetMetafieldsResponse {
-  data?: {
-    metafieldsSet: {
-      metafields: Array<{ id: string }>;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
-
-interface DeleteMetafieldsResponse {
-  data?: {
-    metafieldsDelete: {
-      deletedMetafields: Array<{ ownerId: string }> | null;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
-
 type ActionResult =
   | { success: true; errors: Record<string, never> }
   | { success: false; errors: Record<string, string[]> };
@@ -77,27 +45,48 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const gid = `gid://shopify/Collection/${params.id}`;
 
-  const [collectionRes, optionsRes] = await Promise.all([
+  const optionNameSet = new Set<string>();
+  const fetchOptionsPage = (after?: string) =>
+    admin.graphql(GET_COLLECTION_PRODUCT_OPTIONS, {
+      variables: { id: gid, first: 250, after },
+    });
+
+  const [collectionRes, firstOptionsRes] = await Promise.all([
     admin.graphql(GET_COLLECTION_WITH_RULE, { variables: { id: gid } }),
-    admin.graphql(GET_PRODUCT_OPTIONS, { variables: { first: 50 } }),
+    fetchOptionsPage(),
   ]);
 
-  const { data: colData } = (await collectionRes.json()) as CollectionResponse;
-  const { data: optData } = (await optionsRes.json()) as ProductOptionsResponse;
+  const { data: colData } = await collectionRes.json();
 
   if (!colData?.collection) {
     throw new Response("Collection not found", { status: 404 });
   }
 
-  const optionNames: string[] = Array.from(
-    new Set<string>(
-      optData?.products?.edges?.flatMap(({ node }) =>
-        node.options.map((o) => o.name)
-      ) ?? []
-    )
-  );
+  // Walk the collection's products (up to 4 pages × 250) so every option
+  // name in the collection is offered, not just a first-page sample.
+  let optionsRes = firstOptionsRes;
+  for (let page = 0; page < 4; page++) {
+    const { data: optData } = await optionsRes.json();
+    const products = optData?.collection?.products;
+    if (!products) break;
+    for (const node of products.nodes) {
+      for (const option of node.options) {
+        optionNameSet.add(option.name);
+      }
+    }
+    if (
+      page === 3 ||
+      !products.pageInfo.hasNextPage ||
+      !products.pageInfo.endCursor
+    ) {
+      break;
+    }
+    optionsRes = await fetchOptionsPage(products.pageInfo.endCursor);
+  }
 
-  return json({
+  const optionNames = Array.from(optionNameSet);
+
+  return {
     collection: {
       id: colData.collection.id,
       title: colData.collection.title,
@@ -105,14 +94,15 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       rule: parseRule(colData.collection.metafield?.value),
     },
     optionNames,
-  });
+  };
 }
 
-export async function action({
-  request,
-  context,
-  params,
-}: ActionFunctionArgs): Promise<Response> {
+// Ensure Shopify's reauth/CSP headers survive on responses thrown by
+// authenticate().
+export const headers: HeadersFunction = (headersArgs) =>
+  boundary.headers(headersArgs);
+
+export async function action({ request, context, params }: ActionFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const gid = `gid://shopify/Collection/${params.id}`;
   const form = await request.formData();
@@ -127,21 +117,21 @@ export async function action({
           ],
         },
       });
-      const { data } = (await res.json()) as DeleteMetafieldsResponse;
+      const { data } = await res.json();
       const errs = data?.metafieldsDelete?.userErrors ?? [];
       if (errs.length > 0) {
-        return json<ActionResult>({
+        return {
           success: false,
           errors: { api: [errs[0].message] },
-        });
+        } satisfies ActionResult;
       }
       return redirect("/app");
     } catch (err) {
       console.error("[variant-filter] clear failed:", err);
-      return json<ActionResult>({
+      return {
         success: false,
         errors: { api: ["Could not reach Shopify to clear the rule."] },
-      });
+      } satisfies ActionResult;
     }
   }
 
@@ -162,10 +152,10 @@ export async function action({
 
   const parsed = FilterRuleSchema.safeParse(raw);
   if (!parsed.success) {
-    return json<ActionResult>({
+    return {
       success: false,
       errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
-    });
+    } satisfies ActionResult;
   }
 
   try {
@@ -182,32 +172,29 @@ export async function action({
         ],
       },
     });
-    const { data } = (await res.json()) as SetMetafieldsResponse;
+    const { data } = await res.json();
     const apiErrors = data?.metafieldsSet?.userErrors ?? [];
 
     if (apiErrors.length > 0) {
-      return json<ActionResult>({
+      return {
         success: false,
         errors: { api: apiErrors.map((e) => e.message) },
-      });
+      } satisfies ActionResult;
     }
 
-    return json<ActionResult>({ success: true, errors: {} });
+    return { success: true, errors: {} } satisfies ActionResult;
   } catch (err) {
     console.error("[variant-filter] save failed:", err);
-    return json<ActionResult>({
+    return {
       success: false,
       errors: { api: ["Could not reach Shopify to save the rule."] },
-    });
+    } satisfies ActionResult;
   }
 }
 
 export default function CollectionEditor() {
   const { collection, optionNames } = useLoaderData<typeof loader>();
-  // `useActionData` infers a union that includes `Response` (from `redirect`).
-  // Redirects don't surface as actionData on the next render, so cast to the
-  // narrower shape that's actually returned to the component.
-  const actionData = useActionData() as ActionResult | undefined;
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const isSaving = navigation.formData?.get("intent") === "save";

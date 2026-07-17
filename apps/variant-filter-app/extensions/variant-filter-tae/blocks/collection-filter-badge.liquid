@@ -55,35 +55,35 @@
 
 {% schema %}
 {
-  "name": "Variant Filter Badge",
+  "name": "t:variant_filter_badge.name",
   "target": "section",
   "settings": [
     {
       "type": "checkbox",
       "id": "show_badge",
-      "label": "Show filter badge",
+      "label": "t:variant_filter_badge.settings.show_badge.label",
       "default": true
     },
     {
       "type": "text",
       "id": "badge_text_override",
-      "label": "Badge text override",
-      "info": "Leave empty to use the rule label set in the Variant Filter app."
+      "label": "t:variant_filter_badge.settings.badge_text_override.label",
+      "info": "t:variant_filter_badge.settings.badge_text_override.info"
     },
     {
       "type": "header",
-      "content": "Padding"
+      "content": "t:variant_filter_badge.settings.padding_header.content"
     },
     {
       "type": "range",
       "id": "padding_block_start",
-      "label": "Top",
+      "label": "t:variant_filter_badge.settings.padding_block_start.label",
       "min": 0, "max": 100, "step": 4, "unit": "px", "default": 16
     },
     {
       "type": "range",
       "id": "padding_block_end",
-      "label": "Bottom",
+      "label": "t:variant_filter_badge.settings.padding_block_end.label",
       "min": 0, "max": 100, "step": 4, "unit": "px", "default": 16
     }
   ],
