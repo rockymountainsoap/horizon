@@ -1,0 +1,291 @@
+{%- liquid
+  # Rocky-owned PDP gallery. Composes Horizon's proven carousel engine
+  # (<media-gallery> / <slideshow-component> + Scroller) by delegating to the
+  # upstream `product-media-gallery-content` renderer in forced carousel mode.
+  # We own the framing/CSS layer below — that is where the premium feel lives;
+  # the engine already handles scroll-snap, drag, thumbnail auto-centering,
+  # a11y, zoom, variant-swap, 3D/video, and the iOS Safari compositor safeguard.
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+-%}
+
+<div class="r-pdp-gallery color-{{ scheme }}" {{ block.shopify_attributes }}>
+  {%- render 'product-media-gallery-content',
+    media_presentation: 'carousel',
+    block_settings: block.settings,
+    block_id: block.id,
+    block_shopify_attributes: block.shopify_attributes,
+    block: block,
+    section: section
+  -%}
+</div>
+
+{% stylesheet %}
+  /* Non-invasive wrapper: display:contents keeps the engine's sticky/grid and
+     scroll behavior untouched while still giving Rocky a scheme class + a CSS
+     scoping hook. Colour-scheme custom properties still cascade to children. */
+  .r-pdp-gallery {
+    display: contents;
+  }
+
+  /* --- Premium framing --------------------------------------------------- */
+
+  /* Breathing room between the hero and the thumbnail rail. */
+  .r-pdp-gallery slideshow-controls[thumbnails][pagination-position='center'] {
+    margin-block-start: var(--r-space-sm, 16px);
+  }
+
+  /* --- Thumbnail rail craft ---------------------------------------------- */
+
+  /* Tighter, more editorial spacing than the stock rail. */
+  .r-pdp-gallery .slideshow-controls__thumbnails {
+    gap: var(--r-space-2xs, 8px);
+  }
+
+  /* Soft dim on inactive thumbs; full presence on hover/active. */
+  .r-pdp-gallery .slideshow-controls__thumbnail {
+    opacity: 0.5;
+    transition: opacity 0.25s ease;
+  }
+
+  .r-pdp-gallery .slideshow-controls__thumbnail:hover,
+  .r-pdp-gallery .slideshow-controls__thumbnail:focus-visible {
+    opacity: 0.8;
+  }
+
+  .r-pdp-gallery .slideshow-controls__thumbnail[aria-selected='true'] {
+    opacity: 1;
+  }
+
+  /* Refined active indicator: a single thin ring rather than the stock
+     outline + border pairing — reads cleaner against product imagery.
+     Higher specificity than the stock rule (extra .r-pdp-gallery scope). */
+  .r-pdp-gallery .slideshow-controls__thumbnails .slideshow-control[aria-selected='true'] {
+    outline: 1.5px solid var(--color-foreground);
+    outline-offset: 2px;
+    border: none;
+  }
+
+  /* Keyboard focus must stay clearly visible in every colour scheme —
+     never let the thumbnail's own styling swallow the focus ring. */
+  .r-pdp-gallery .slideshow-controls__thumbnail:focus-visible {
+    outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .r-pdp-gallery .slideshow-controls__thumbnail {
+      transition: none;
+    }
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_gallery",
+  "tag": null,
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:content.media"
+    },
+    {
+      "type": "select",
+      "id": "aspect_ratio",
+      "label": "t:settings.aspect_ratio",
+      "options": [
+        { "value": "adapt", "label": "t:options.auto" },
+        { "value": "1/1.25", "label": "t:options.portrait" },
+        { "value": "1", "label": "t:options.square" },
+        { "value": "2/1", "label": "t:options.landscape" }
+      ],
+      "default": "1/1.25"
+    },
+    {
+      "type": "checkbox",
+      "id": "constrain_to_viewport",
+      "label": "t:settings.limit_media_to_screen_height",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "media_fit",
+      "label": "t:settings.media_fit",
+      "options": [
+        { "value": "cover", "label": "t:options.cover" },
+        { "value": "contain", "label": "t:options.contain" }
+      ],
+      "default": "contain",
+      "visible_if": "{{ block.settings.aspect_ratio == 'adapt' and block.settings.constrain_to_viewport == true }}"
+    },
+    {
+      "type": "range",
+      "id": "media_radius",
+      "label": "t:settings.border_radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 4
+    },
+    {
+      "type": "checkbox",
+      "id": "zoom",
+      "label": "t:settings.enable_zoom",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_variants",
+      "label": "t:settings.hide_unselected_variant_media",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "video_loop",
+      "label": "t:settings.enable_video_looping",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "t:content.carousel"
+    },
+    {
+      "type": "select",
+      "id": "icons_style",
+      "label": "t:settings.icons",
+      "options": [
+        { "value": "arrow", "label": "t:options.arrows" },
+        { "value": "chevron", "label": "t:options.chevrons" },
+        { "value": "arrows_large", "label": "t:options.large_arrows" },
+        { "value": "chevron_large", "label": "t:options.large_chevrons" }
+      ],
+      "default": "arrow"
+    },
+    {
+      "type": "select",
+      "id": "slideshow_controls_style",
+      "label": "t:settings.desktop_pagination",
+      "options": [
+        { "value": "dots", "label": "t:options.dots" },
+        { "value": "counter", "label": "t:options.counter" },
+        { "value": "thumbnails", "label": "t:options.thumbnails" }
+      ],
+      "default": "thumbnails"
+    },
+    {
+      "type": "select",
+      "id": "slideshow_mobile_controls_style",
+      "label": "t:settings.mobile_pagination",
+      "options": [
+        { "value": "dots", "label": "t:options.dots" },
+        { "value": "counter", "label": "t:options.counter" },
+        { "value": "hint", "label": "t:options.hint" },
+        { "value": "thumbnails", "label": "t:options.thumbnails" }
+      ],
+      "default": "thumbnails"
+    },
+    {
+      "type": "header",
+      "content": "t:content.thumbnails",
+      "visible_if": "{{ block.settings.slideshow_controls_style == 'thumbnails' or block.settings.slideshow_mobile_controls_style == 'thumbnails' }}"
+    },
+    {
+      "type": "select",
+      "id": "thumbnail_position",
+      "label": "t:settings.desktop_position",
+      "options": [
+        { "value": "left", "label": "t:options.left" },
+        { "value": "bottom", "label": "t:options.bottom" },
+        { "value": "right", "label": "t:options.right" }
+      ],
+      "default": "bottom",
+      "visible_if": "{{ block.settings.slideshow_controls_style == 'thumbnails' }}"
+    },
+    {
+      "type": "range",
+      "id": "thumbnail_width",
+      "label": "t:settings.width_desktop",
+      "min": 44,
+      "max": 72,
+      "step": 1,
+      "unit": "px",
+      "default": 64,
+      "visible_if": "{{ block.settings.slideshow_controls_style == 'thumbnails' }}"
+    },
+    {
+      "type": "range",
+      "id": "thumbnail_radius",
+      "label": "t:settings.corner_radius",
+      "min": 0,
+      "max": 50,
+      "step": 1,
+      "unit": "px",
+      "default": 4,
+      "visible_if": "{{ block.settings.slideshow_controls_style == 'thumbnails' or block.settings.slideshow_mobile_controls_style == 'thumbnails' }}"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    },
+    {
+      "type": "header",
+      "content": "t:content.padding"
+    },
+    {
+      "type": "range",
+      "id": "padding-block-start",
+      "label": "t:settings.top",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    },
+    {
+      "type": "range",
+      "id": "padding-block-end",
+      "label": "t:settings.bottom",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px",
+      "default": 0
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_gallery",
+      "category": "Rocky — PDP",
+      "settings": {
+        "aspect_ratio": "1/1.25",
+        "constrain_to_viewport": true,
+        "media_radius": 4,
+        "zoom": true,
+        "hide_variants": true,
+        "slideshow_controls_style": "thumbnails",
+        "slideshow_mobile_controls_style": "thumbnails",
+        "thumbnail_position": "bottom",
+        "thumbnail_width": 64,
+        "thumbnail_radius": 4,
+        "inherit_color_scheme": true
+      }
+    }
+  ]
+}
+{% endschema %}
