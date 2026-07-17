@@ -37,43 +37,6 @@ import {
 import { FilterRuleSchema, parseRule } from "~/models/rule.server";
 import { authenticate } from "~/shopify.server";
 
-interface CollectionResponse {
-  data?: {
-    collection: {
-      id: string;
-      title: string;
-      handle: string;
-      metafield: { id: string; value: string } | null;
-    } | null;
-  };
-}
-
-interface ProductOptionsResponse {
-  data?: {
-    products: {
-      edges: Array<{ node: { options: Array<{ name: string }> } }>;
-    };
-  };
-}
-
-interface SetMetafieldsResponse {
-  data?: {
-    metafieldsSet: {
-      metafields: Array<{ id: string }>;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
-
-interface DeleteMetafieldsResponse {
-  data?: {
-    metafieldsDelete: {
-      deletedMetafields: Array<{ ownerId: string }> | null;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
-
 type ActionResult =
   | { success: true; errors: Record<string, never> }
   | { success: false; errors: Record<string, string[]> };
@@ -87,8 +50,8 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     admin.graphql(GET_PRODUCT_OPTIONS, { variables: { first: 50 } }),
   ]);
 
-  const { data: colData } = (await collectionRes.json()) as CollectionResponse;
-  const { data: optData } = (await optionsRes.json()) as ProductOptionsResponse;
+  const { data: colData } = await collectionRes.json();
+  const { data: optData } = await optionsRes.json();
 
   if (!colData?.collection) {
     throw new Response("Collection not found", { status: 404 });
@@ -133,7 +96,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           ],
         },
       });
-      const { data } = (await res.json()) as DeleteMetafieldsResponse;
+      const { data } = await res.json();
       const errs = data?.metafieldsDelete?.userErrors ?? [];
       if (errs.length > 0) {
         return {
@@ -188,7 +151,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         ],
       },
     });
-    const { data } = (await res.json()) as SetMetafieldsResponse;
+    const { data } = await res.json();
     const apiErrors = data?.metafieldsSet?.userErrors ?? [];
 
     if (apiErrors.length > 0) {

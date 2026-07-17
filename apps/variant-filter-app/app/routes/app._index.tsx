@@ -44,29 +44,6 @@ interface CollectionRow {
   rule: ReturnType<typeof parseRule>;
 }
 
-interface PageInfo {
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  startCursor: string;
-  endCursor: string;
-}
-
-interface ListCollectionsResponse {
-  data?: {
-    collections: {
-      pageInfo: PageInfo;
-      edges: Array<{
-        node: {
-          id: string;
-          title: string;
-          handle: string;
-          metafield: { id: string; value: string } | null;
-        };
-      }>;
-    };
-  };
-}
-
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const { admin } = await authenticate(request, context);
 
@@ -77,7 +54,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const response = await admin.graphql(LIST_COLLECTIONS, {
     variables: { first: 50, after, before },
   });
-  const { data } = (await response.json()) as ListCollectionsResponse;
+  const { data } = await response.json();
 
   if (!data) {
     throw new Response("Failed to load collections", { status: 502 });
@@ -101,15 +78,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 export const headers: HeadersFunction = (headersArgs) =>
   boundary.headers(headersArgs);
 
-interface DeleteResponse {
-  data?: {
-    metafieldsDelete: {
-      deletedMetafields: Array<{ ownerId: string }> | null;
-      userErrors: Array<{ field: string[] | null; message: string }>;
-    };
-  };
-}
-
 type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -132,7 +100,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         ],
       },
     });
-    const { data: resData } = (await res.json()) as DeleteResponse;
+    const { data: resData } = await res.json();
     const userErrors = resData?.metafieldsDelete?.userErrors ?? [];
 
     if (userErrors.length > 0) {

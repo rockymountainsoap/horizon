@@ -3,3 +3,4 @@ build/
 .react-router/
 .wrangler/
 .env
+app/types/admin-*.schema.json
