@@ -34,7 +34,7 @@ export default function App() {
 
 /**
  * Top-level error boundary. Without this, any unhandled exception in a loader
- * or action surfaces as Remix's bare "Application Error" string. We render a
+ * or action surfaces as React Router's bare "Application Error" string. We render a
  * minimal HTML shell ourselves (Polaris isn't available outside `<AppProvider>`)
  * with enough info for the merchant to recover or report.
  */

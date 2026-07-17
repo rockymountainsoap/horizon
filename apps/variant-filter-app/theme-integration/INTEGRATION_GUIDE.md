@@ -212,8 +212,8 @@ Run from `apps/variant-filter-app/`:
 
 | Command | What it deploys |
 |---------|----------------|
-| `npm run deploy` | Builds Remix bundle + deploys Cloudflare Worker + deploys TAE |
-| `npm run deploy:worker` | Builds Remix bundle + deploys Cloudflare Worker only (admin UI changes) |
+| `npm run deploy` | Builds React Router bundle + deploys Cloudflare Worker + deploys TAE |
+| `npm run deploy:worker` | Builds React Router bundle + deploys Cloudflare Worker only (admin UI changes) |
 | `npm run deploy:extension` | Deploys TAE only (storefront snippet / badge changes) |
 | `shopify app dev` | Local dev (tunnel + Worker dev server) |
 

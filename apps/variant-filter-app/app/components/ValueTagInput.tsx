@@ -69,7 +69,7 @@ export function ValueTagInput({
           ))}
         </InlineStack>
       )}
-      {/* Hidden input serialises the array for Remix form submission */}
+      {/* Hidden input serialises the array for form submission */}
       <input type="hidden" name="values" value={JSON.stringify(values)} />
     </BlockStack>
   );
