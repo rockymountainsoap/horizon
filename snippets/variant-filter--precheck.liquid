@@ -57,8 +57,12 @@
         endfor
 
       elsif vf_pc_rule.filterType == 'size_range'
-        assign vf_pc_n = vf_pc_val.name | plus: 0
-        if vf_pc_n > 0 and vf_pc_n <= vf_pc_rule.maxMl
+        # Same numeric round-trip guard as filter.liquid — only genuinely
+        # numeric ml values ("100", "100ml") can count as a match.
+        assign vf_pc_clean = vf_pc_val.name | strip | downcase | remove: 'ml' | strip
+        assign vf_pc_n = vf_pc_clean | plus: 0
+        assign vf_pc_rt = vf_pc_n | append: ''
+        if vf_pc_clean == vf_pc_rt and vf_pc_n > 0 and vf_pc_n <= vf_pc_rule.maxMl
           assign vf_pc_has_match = true
         endif
       endif

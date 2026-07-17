@@ -66,10 +66,18 @@
         if vf_rule.maxMl == blank or vf_rule.maxMl == 0
           # Missing/zero maxMl — fail open.
         else
-          assign vf_numeric = vf_value_name | plus: 0
-          # Non-numeric strings produce 0 via plus:0 — treat as pass (show).
-          # size_range is documented to require ml-unit values (e.g. "100ml").
-          if vf_numeric > vf_rule.maxMl
+          # Strip an optional ml suffix, then require the numeric round-trip to
+          # reproduce the cleaned string. Guards against plus:0 coercing
+          # non-numeric values ("1L", "Travel Size") to 0 and wrongly passing.
+          assign vf_clean = vf_value_name | strip | downcase | remove: 'ml' | strip
+          assign vf_numeric = vf_clean | plus: 0
+          assign vf_roundtrip = vf_numeric | append: ''
+          if vf_clean == vf_roundtrip
+            if vf_numeric > vf_rule.maxMl
+              assign vf_should_skip = true
+            endif
+          else
+            # Non-numeric value — cannot satisfy an ml-based rule; skip it.
             assign vf_should_skip = true
           endif
         endif

@@ -1,7 +1,0 @@
-{
-  "variant_filter": {
-    "badge": {
-      "showing": "Showing: {{ label }}"
-    }
-  }
-}

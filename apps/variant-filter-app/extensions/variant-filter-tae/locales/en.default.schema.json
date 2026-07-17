@@ -9,8 +9,14 @@
         "label": "Badge text override",
         "info": "Leave empty to use the rule label set in the Variant Filter app."
       },
-      "color_scheme": {
-        "label": "Color scheme"
+      "padding_header": {
+        "content": "Padding"
+      },
+      "padding_block_start": {
+        "label": "Top"
+      },
+      "padding_block_end": {
+        "label": "Bottom"
       }
     }
   }
