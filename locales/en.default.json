@@ -369,17 +369,6 @@
     }
   },
   "rocky": {
-    "wishlist": {
-      "heading": "My Wishlist",
-      "open_drawer": "Open wishlist",
-      "item_count": "items in wishlist",
-      "empty": "Your wishlist is empty.",
-      "guest_note": "Log in to save your wishlist across devices.",
-      "view_all": "View full wishlist",
-      "select_all": "Select all items",
-      "select_all_label": "Select all",
-      "add_to_cart": "Add to cart"
-    },
     "pdp_description": {
       "slab_of_soap": "1 slab = 16 bars of soap and saves your wallet 20%. Heads up — slabs do not arrive precut.",
       "promo_bath_bomb": "Buy 6 Bath Bombs for $39 CAD.",

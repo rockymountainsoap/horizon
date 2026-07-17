@@ -35,7 +35,7 @@ STORES_CACHE_SECONDS = "3600"
 ALLOWED_ORIGINS = "https://www.rockymountainsoap.com,https://rockymountainsoap.com,https://rocky-soap-development.myshopify.com,https://rocky-test-store.myshopify.com,https://rocky-horizon-development.myshopify.com,http://localhost:5173"
 
 # ── KV: Admin token cache ──
-# Cloudflare title is LOCATOR_KV (separate from native_worker's APP_KV).
+# Cloudflare title is LOCATOR_KV.
 # Binding stays as APP_KV so src/shopify/tokens.js can stay shop-agnostic.
 [[kv_namespaces]]
 binding = "APP_KV"

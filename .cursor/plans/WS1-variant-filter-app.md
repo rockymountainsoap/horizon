@@ -2,7 +2,7 @@
 
 **Status**: Planning complete — ready to implement  
 **Planned**: 2026-04-24  
-**Location**: `apps/variant-filter-app/` (monorepo, alongside `rocky-wishlist-app`)
+**Location**: `apps/variant-filter-app/` (monorepo)
 
 ---
 
@@ -26,14 +26,14 @@ A Shopify embedded app that lets merchants define per-collection variant filter 
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Repository location | `apps/variant-filter-app/` | Monorepo alongside wishlist app |
+| Repository location | `apps/variant-filter-app/` | Monorepo layout |
 | Session storage | Cloudflare KV (`@shopify/shopify-app-session-storage-kv`) | No database needed — sessions are simple KV pairs |
 | Metafield namespace | `app--variant-filter` | Human-readable, avoids `$app` complexity |
 | TAE extension handle | `variant-filter` | Snippet deployed as `variant-filter--filter.liquid` |
 | Integration guide scope | Generic Horizons (not Rocky-specific) | Reusable across any Horizons install |
 | Option field in admin UI | Dropdown populated from store's product options | Better UX than free-text |
 | Quick-clear from collection list | Yes | Confirmed |
-| API version | `2025-04` | Matches existing wishlist app |
+| API version | `2025-04` | Current stable Admin API version at planning time |
 
 ---
 
