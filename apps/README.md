@@ -1,4 +1,4 @@
-# Apps — Shopify (`rocky-wishlist-app` · `variant-filter-app`)
+# Apps — Shopify (`variant-filter-app`)
 
 This directory holds Rocky Mountain Soap's custom Shopify apps. The Horizon theme lives at the **repository root**; app code lives here to avoid mixing with theme merge rules.
 
@@ -8,73 +8,7 @@ This directory holds Rocky Mountain Soap's custom Shopify apps. The Horizon them
 
 | App | Workstream | Runtime | Purpose |
 |-----|-----------|---------|---------|
-| `rocky-wishlist-app` | WS0 | Cloudflare Worker + Customer Account UI extensions | Native customer wishlist (PDP toggle, account page, header mini-drawer) |
 | `variant-filter-app` | WS1 | Cloudflare Worker + Theme App Extension | Per-collection variant filter rules with server-side product-card pre-selection |
-
----
-
-## `rocky-wishlist-app`
-
-### Layout
-
-```
-apps/rocky-wishlist-app/
-├── shopify.app.toml              # App proxy, scopes, OAuth redirect
-├── package.json
-├── README.md
-└── extensions/
-    ├── wishlist-button/                # Theme app extension (PDP block)
-    │   ├── assets/
-    │   │   ├── wishlist-button.js      # Toggle logic, guest state, session cache
-    │   │   └── wishlist-button.css     # Button + active/loading states
-    │   ├── blocks/
-    │   │   └── wishlist-button.liquid  # App block (draggable in theme editor)
-    │   └── locales/
-    │       ├── en.default.json
-    │       └── en.default.schema.json
-    ├── customer-account-wishlist/      # Customer Account UI — full page
-    │   ├── src/
-    │   │   └── FullPageExtension.jsx
-    │   └── locales/
-    ├── wishlist-profile-block/         # Customer Account UI — profile card
-    │   ├── src/
-    │   │   └── ProfileBlockExtension.jsx
-    │   └── locales/
-```
-
-### Setup
-
-1. Edit `shopify.app.toml`: verify `client_id`, worker URL, `app_proxy.url`, `auth.redirect_urls`.
-2. Deploy `workers/native_worker` and complete OAuth install — see `workers/native_worker/README.md`.
-3. From this directory:
-
-   ```bash
-   cd apps/rocky-wishlist-app
-   npm install
-   shopify app dev
-   ```
-
-4. Install on a dev store with **New customer accounts**; request **Protected customer data** Level 1.
-
-### Deploy
-
-```bash
-cd apps/rocky-wishlist-app
-shopify app deploy --allow-updates
-```
-
-### Theme integration (repo root)
-
-- `snippets/r-header-wishlist.liquid` — header icon + mini-drawer (includes guest merge-on-login).
-- `assets/r-header-wishlist.js` — fetch, render, add-to-cart logic.
-- PDP button comes from the **wishlist-button** theme app block (add via theme editor after install).
-
-### Key architecture decisions
-
-- **Two GraphQL surfaces in Customer Account UI extensions:** `useApi().query()` → Storefront API. Writes to customer metafields must use `fetch('shopify://customer-account/api/2025-04/graphql.json', …)`.
-- **Customer Account extensions use `metafieldsSet`** (Customer Account API) for add/remove — not the App Proxy, because extensions run on `shopify.com`.
-- **PDP button uses App Proxy** (`/apps/wishlist/add`) for logged-in customers, `localStorage` for guests.
-- **Guest-to-account sync** runs from `r-wishlist-header` (`_mergeGuestList` in `r-header-wishlist.js`).
 
 ---
 

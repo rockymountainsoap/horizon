@@ -2,7 +2,7 @@
 
 **Entry:** `locator_worker.js` (re-exports `src/index.js`) — configured in `wrangler.toml` as `main`.
 
-Single Worker that serves both Rocky's store-locator UI and per-PDP "find in store" inventory lookups. Mirrors the architecture of `workers/native_worker/`: Client Credentials Grant for Admin API auth, KV-backed token cache, layered handlers, CORS-safe responses.
+Single Worker that serves both Rocky's store-locator UI and per-PDP "find in store" inventory lookups. Uses the Client Credentials Grant for Admin API auth, a KV-backed token cache, layered handlers, and CORS-safe responses.
 
 ## Routes
 
@@ -48,7 +48,7 @@ npx wrangler deploy --env production # production (needs its own KV id)
 
 ## Authentication
 
-Same Client Credentials Grant pattern as `native_worker`. See `workers/native_worker/README.md` for the full explanation. Token cache layers (in-memory → KV → fresh exchange) are identical.
+Uses the **Client Credentials Grant** ([Shopify docs](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/client-credentials-grant)): the Worker POSTs `grant_type=client_credentials` + `client_id` + `client_secret` to `https://{shop}/admin/oauth/access_token` and gets back a 24h Admin API token. Tokens are cached in two layers — in-memory (same isolate) and KV (cross-isolate, survives cold starts) — with a 23h cache TTL, so the Worker self-heals on the next request rather than needing manual re-auth.
 
 ## Metaobject + location dependency
 
@@ -70,7 +70,7 @@ src/
 │   ├── validate.js           # Handle slug + numeric variant ID validators
 │   └── validate.test.js
 ├── shopify/
-│   ├── tokens.js             # Client Credentials acquisition + KV caching (verbatim from native_worker)
+│   ├── tokens.js             # Client Credentials acquisition + KV caching
 │   ├── tokens.test.js
 │   └── adminApi.js           # GraphQL queries: storeLocations, storeLocation, inventoryByVariant
 └── utils/

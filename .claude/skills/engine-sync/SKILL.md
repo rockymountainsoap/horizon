@@ -74,7 +74,7 @@ look for, per file:
 |---|---|
 | `component.js` | `ref`/`on:<event>=` contract semantics, `Component` lifecycle, registration API — 59 dependents including all Rocky `r-*.js` |
 | `events.js` | Event names + payload shapes. Adopted feature files and Rocky components listen to these — **grep the whole assets/ tree for any renamed/removed export or event name before applying** |
-| `morph.js` | `MORPH_OPTIONS`, escape-hatch attributes (`data-skip-subtree-update`, `data-skip-node-update`) — load-bearing for Rocky wishlist/cart (AGENTS.md Runtime Internals) |
+| `morph.js` | `MORPH_OPTIONS`, escape-hatch attributes (`data-skip-subtree-update`, `data-skip-node-update`) — load-bearing for Rocky components that populate their subtree at runtime, e.g. cart |
 | `section-renderer.js` / `section-hydration.js` | Public API (`renderSection`, `morphSection`, selectors) called by adopted feature JS |
 | `utilities.js` | ⚠️ **Header-coupled region** (`setMenuStyle`, header-group height fns): coupled to Horizon header DOM. Never blindly apply hunks there — Rocky's header diverges (see manifest caveat row) |
 | `dialog.js` | `DialogComponent` API — base class of cart-drawer, quick-add, Rocky dialogs |
@@ -125,8 +125,7 @@ grep.
    change (price/media update), cart line quantity change (section re-render +
    morph), search modal, theme editor section add/reorder, view transitions
    (navigate PLP → PDP), browser console clean of errors.
-4. Rocky-specific: wishlist header flow (morph escape hatches), cart subscription
-   toggle, variant pill pre-selection on PLP.
+4. Rocky-specific: cart subscription toggle, variant pill pre-selection on PLP.
 
 ## Phase 5 — Record
 
