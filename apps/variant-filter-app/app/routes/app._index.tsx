@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { data } from "react-router";
 import type {
   ActionFunctionArgs,
@@ -10,6 +10,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  useSearchParams,
   useSubmit,
 } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -51,8 +52,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const after = url.searchParams.get("after") ?? undefined;
   const before = url.searchParams.get("before") ?? undefined;
 
+  // Relay pagination: `before` pairs with `last`, `after` with `first` —
+  // combining `first` with `before` is rejected by the API.
   const response = await admin.graphql(LIST_COLLECTIONS, {
-    variables: { first: 50, after, before },
+    variables: before ? { last: 50, before } : { first: 50, after },
   });
   const { data } = await response.json();
 
@@ -125,9 +128,18 @@ export default function CollectionsIndex() {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
+  const [searchParams] = useSearchParams();
   const isClearing = navigation.formMethod === "POST";
 
   const [pendingClear, setPendingClear] = useState<CollectionRow | null>(null);
+  const [successDismissed, setSuccessDismissed] = useState(false);
+
+  // A new submission should surface the next success banner again.
+  useEffect(() => {
+    if (navigation.state === "submitting") {
+      setSuccessDismissed(false);
+    }
+  }, [navigation.state]);
 
   function confirmClear() {
     if (!pendingClear) return;
@@ -135,17 +147,27 @@ export default function CollectionsIndex() {
     setPendingClear(null);
   }
 
+  // Build cursor links off the current URL so unrelated query params
+  // (e.g. host/shop in some embedded contexts) survive pagination.
+  function cursorUrl(direction: "after" | "before", cursor: string) {
+    const params = new URLSearchParams(searchParams);
+    params.delete("after");
+    params.delete("before");
+    params.set(direction, cursor);
+    return `?${params.toString()}`;
+  }
+
   const resourceName = { singular: "collection", plural: "collections" };
   const errorBanner =
     actionData && !actionData.ok ? actionData.error : undefined;
   const successBanner =
-    actionData?.ok === true && navigation.state === "idle";
+    actionData?.ok === true && navigation.state === "idle" && !successDismissed;
 
   return (
     <Page title="Variant Filter Rules">
       <BlockStack gap="400">
         {successBanner && (
-          <Banner tone="success" onDismiss={() => undefined}>
+          <Banner tone="success" onDismiss={() => setSuccessDismissed(true)}>
             Rule cleared. All variants will be shown again on that collection.
           </Banner>
         )}
@@ -218,10 +240,18 @@ export default function CollectionsIndex() {
         {(pageInfo.hasNextPage || pageInfo.hasPreviousPage) && (
           <InlineStack align="center">
             <Pagination
-              hasPrevious={pageInfo.hasPreviousPage}
-              previousURL={`?before=${pageInfo.startCursor}`}
-              hasNext={pageInfo.hasNextPage}
-              nextURL={`?after=${pageInfo.endCursor}`}
+              hasPrevious={pageInfo.hasPreviousPage && !!pageInfo.startCursor}
+              previousURL={
+                pageInfo.startCursor
+                  ? cursorUrl("before", pageInfo.startCursor)
+                  : undefined
+              }
+              hasNext={pageInfo.hasNextPage && !!pageInfo.endCursor}
+              nextURL={
+                pageInfo.endCursor
+                  ? cursorUrl("after", pageInfo.endCursor)
+                  : undefined
+              }
             />
           </InlineStack>
         )}

@@ -4,8 +4,9 @@
 import type * as AdminTypes from './admin.types.js';
 
 export type ListCollectionsQueryVariables = AdminTypes.Exact<{
-  first: AdminTypes.Scalars['Int']['input'];
+  first?: AdminTypes.InputMaybe<AdminTypes.Scalars['Int']['input']>;
   after?: AdminTypes.InputMaybe<AdminTypes.Scalars['String']['input']>;
+  last?: AdminTypes.InputMaybe<AdminTypes.Scalars['Int']['input']>;
   before?: AdminTypes.InputMaybe<AdminTypes.Scalars['String']['input']>;
 }>;
 
@@ -25,12 +26,14 @@ export type GetCollectionWithRuleQuery = { collection?: AdminTypes.Maybe<(
     & { metafield?: AdminTypes.Maybe<Pick<AdminTypes.Metafield, 'id' | 'value'>> }
   )> };
 
-export type GetProductOptionsQueryVariables = AdminTypes.Exact<{
+export type GetCollectionProductOptionsQueryVariables = AdminTypes.Exact<{
+  id: AdminTypes.Scalars['ID']['input'];
   first: AdminTypes.Scalars['Int']['input'];
+  after?: AdminTypes.InputMaybe<AdminTypes.Scalars['String']['input']>;
 }>;
 
 
-export type GetProductOptionsQuery = { products: { edges: Array<{ node: { options: Array<Pick<AdminTypes.ProductOption, 'name'>> } }> } };
+export type GetCollectionProductOptionsQuery = { collection?: AdminTypes.Maybe<{ products: { pageInfo: Pick<AdminTypes.PageInfo, 'hasNextPage' | 'endCursor'>, nodes: Array<{ options: Array<Pick<AdminTypes.ProductOption, 'name'>> }> } }> };
 
 export type RegisterVariantFilterDefinitionMutationVariables = AdminTypes.Exact<{
   definition: AdminTypes.MetafieldDefinitionInput;
@@ -54,9 +57,9 @@ export type DeleteVariantFilterRuleMutationVariables = AdminTypes.Exact<{
 export type DeleteVariantFilterRuleMutation = { metafieldsDelete?: AdminTypes.Maybe<{ deletedMetafields?: AdminTypes.Maybe<Array<AdminTypes.Maybe<Pick<AdminTypes.MetafieldIdentifier, 'ownerId' | 'namespace' | 'key'>>>>, userErrors: Array<Pick<AdminTypes.UserError, 'field' | 'message'>> }> };
 
 interface GeneratedQueryTypes {
-  "#graphql\n  query ListCollections($first: Int!, $after: String, $before: String) {\n    collections(first: $first, after: $after, before: $before, sortKey: TITLE) {\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        node {\n          id\n          title\n          handle\n          metafield(namespace: \"variant-filter\", key: \"rule\") {\n            id\n            value\n          }\n        }\n      }\n    }\n  }\n": {return: ListCollectionsQuery, variables: ListCollectionsQueryVariables},
+  "#graphql\n  query ListCollections($first: Int, $after: String, $last: Int, $before: String) {\n    collections(first: $first, after: $after, last: $last, before: $before, sortKey: TITLE) {\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        node {\n          id\n          title\n          handle\n          metafield(namespace: \"variant-filter\", key: \"rule\") {\n            id\n            value\n          }\n        }\n      }\n    }\n  }\n": {return: ListCollectionsQuery, variables: ListCollectionsQueryVariables},
   "#graphql\n  query GetCollectionWithRule($id: ID!) {\n    collection(id: $id) {\n      id\n      title\n      handle\n      metafield(namespace: \"variant-filter\", key: \"rule\") {\n        id\n        value\n      }\n    }\n  }\n": {return: GetCollectionWithRuleQuery, variables: GetCollectionWithRuleQueryVariables},
-  "#graphql\n  query GetProductOptions($first: Int!) {\n    products(first: $first) {\n      edges {\n        node {\n          options {\n            name\n          }\n        }\n      }\n    }\n  }\n": {return: GetProductOptionsQuery, variables: GetProductOptionsQueryVariables},
+  "#graphql\n  query GetCollectionProductOptions($id: ID!, $first: Int!, $after: String) {\n    collection(id: $id) {\n      products(first: $first, after: $after) {\n        pageInfo {\n          hasNextPage\n          endCursor\n        }\n        nodes {\n          options {\n            name\n          }\n        }\n      }\n    }\n  }\n": {return: GetCollectionProductOptionsQuery, variables: GetCollectionProductOptionsQueryVariables},
 }
 
 interface GeneratedMutationTypes {

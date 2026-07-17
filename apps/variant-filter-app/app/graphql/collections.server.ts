@@ -1,6 +1,6 @@
 export const LIST_COLLECTIONS = `#graphql
-  query ListCollections($first: Int!, $after: String, $before: String) {
-    collections(first: $first, after: $after, before: $before, sortKey: TITLE) {
+  query ListCollections($first: Int, $after: String, $last: Int, $before: String) {
+    collections(first: $first, after: $after, last: $last, before: $before, sortKey: TITLE) {
       pageInfo {
         hasNextPage
         hasPreviousPage
@@ -36,11 +36,17 @@ export const GET_COLLECTION_WITH_RULE = `#graphql
   }
 `;
 
-export const GET_PRODUCT_OPTIONS = `#graphql
-  query GetProductOptions($first: Int!) {
-    products(first: $first) {
-      edges {
-        node {
+// Scoped to the collection being edited (not a shop-wide product sample) and
+// paginated so option names beyond the first page still appear in the editor.
+export const GET_COLLECTION_PRODUCT_OPTIONS = `#graphql
+  query GetCollectionProductOptions($id: ID!, $first: Int!, $after: String) {
+    collection(id: $id) {
+      products(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
           options {
             name
           }

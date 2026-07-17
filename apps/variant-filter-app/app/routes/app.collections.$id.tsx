@@ -25,8 +25,8 @@ import {
 } from "@shopify/polaris";
 import { RuleEditor } from "~/components/RuleEditor";
 import {
+  GET_COLLECTION_PRODUCT_OPTIONS,
   GET_COLLECTION_WITH_RULE,
-  GET_PRODUCT_OPTIONS,
 } from "~/graphql/collections.server";
 import {
   DELETE_RULE,
@@ -45,25 +45,46 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const gid = `gid://shopify/Collection/${params.id}`;
 
-  const [collectionRes, optionsRes] = await Promise.all([
+  const optionNameSet = new Set<string>();
+  const fetchOptionsPage = (after?: string) =>
+    admin.graphql(GET_COLLECTION_PRODUCT_OPTIONS, {
+      variables: { id: gid, first: 250, after },
+    });
+
+  const [collectionRes, firstOptionsRes] = await Promise.all([
     admin.graphql(GET_COLLECTION_WITH_RULE, { variables: { id: gid } }),
-    admin.graphql(GET_PRODUCT_OPTIONS, { variables: { first: 50 } }),
+    fetchOptionsPage(),
   ]);
 
   const { data: colData } = await collectionRes.json();
-  const { data: optData } = await optionsRes.json();
 
   if (!colData?.collection) {
     throw new Response("Collection not found", { status: 404 });
   }
 
-  const optionNames: string[] = Array.from(
-    new Set<string>(
-      optData?.products?.edges?.flatMap(({ node }) =>
-        node.options.map((o) => o.name)
-      ) ?? []
-    )
-  );
+  // Walk the collection's products (up to 4 pages × 250) so every option
+  // name in the collection is offered, not just a first-page sample.
+  let optionsRes = firstOptionsRes;
+  for (let page = 0; page < 4; page++) {
+    const { data: optData } = await optionsRes.json();
+    const products = optData?.collection?.products;
+    if (!products) break;
+    for (const node of products.nodes) {
+      for (const option of node.options) {
+        optionNameSet.add(option.name);
+      }
+    }
+    if (
+      page === 3 ||
+      !products.pageInfo.hasNextPage ||
+      !products.pageInfo.endCursor
+    ) {
+      break;
+    }
+    optionsRes = await fetchOptionsPage(products.pageInfo.endCursor);
+  }
+
+  const optionNames = Array.from(optionNameSet);
 
   return {
     collection: {
