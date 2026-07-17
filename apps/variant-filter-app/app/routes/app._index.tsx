@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { json } from "@remix-run/cloudflare";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { data } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import {
   Link,
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
-} from "@remix-run/react";
+} from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   Banner,
   BlockStack,
@@ -88,8 +93,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     })
   );
 
-  return json({ collections, pageInfo: data.collections.pageInfo });
+  return { collections, pageInfo: data.collections.pageInfo };
 }
+
+// Ensure Shopify's reauth/CSP headers survive on responses thrown by
+// authenticate().
+export const headers: HeadersFunction = (headersArgs) =>
+  boundary.headers(headersArgs);
 
 interface DeleteResponse {
   data?: {
@@ -102,16 +112,13 @@ interface DeleteResponse {
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
-export async function action({
-  request,
-  context,
-}: ActionFunctionArgs): Promise<Response> {
+export async function action({ request, context }: ActionFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const form = await request.formData();
   const ownerId = String(form.get("ownerId") ?? "");
 
   if (!ownerId.startsWith("gid://shopify/Collection/")) {
-    return json<ActionResult>(
+    return data<ActionResult>(
       { ok: false, error: "Missing or invalid collection identifier." },
       { status: 400 }
     );
@@ -125,20 +132,20 @@ export async function action({
         ],
       },
     });
-    const { data } = (await res.json()) as DeleteResponse;
-    const userErrors = data?.metafieldsDelete?.userErrors ?? [];
+    const { data: resData } = (await res.json()) as DeleteResponse;
+    const userErrors = resData?.metafieldsDelete?.userErrors ?? [];
 
     if (userErrors.length > 0) {
-      return json<ActionResult>(
+      return data<ActionResult>(
         { ok: false, error: userErrors[0].message },
         { status: 400 }
       );
     }
 
-    return json<ActionResult>({ ok: true });
+    return data<ActionResult>({ ok: true });
   } catch (err) {
     console.error("[variant-filter] DELETE_RULE failed:", err);
-    return json<ActionResult>(
+    return data<ActionResult>(
       { ok: false, error: "Could not reach Shopify to clear the rule." },
       { status: 502 }
     );
@@ -147,7 +154,7 @@ export async function action({
 
 export default function CollectionsIndex() {
   const { collections, pageInfo } = useLoaderData<typeof loader>();
-  const actionData = useActionData() as ActionResult | undefined;
+  const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const isClearing = navigation.formMethod === "POST";

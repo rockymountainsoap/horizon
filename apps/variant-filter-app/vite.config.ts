@@ -1,33 +1,12 @@
 import { defineConfig } from "vite";
-import { vitePlugin as remix } from "@remix-run/dev";
+import { reactRouter } from "@react-router/dev/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig({
   plugins: [
-    remix({
-      future: {
-        v3_fetcherPersist: true,
-        v3_relativeSplatPath: true,
-        v3_throwAbortReason: true,
-      },
-    }),
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
+    reactRouter(),
     tsconfigPaths(),
   ],
-  ssr: {
-    target: "webworker",
-    noExternal: true,
-  },
-  build: {
-    minify: false,
-    ...(isSsrBuild
-      ? {
-          rollupOptions: {
-            input: "./server.ts",
-            output: {
-              entryFileNames: "index.js",
-            },
-          },
-        }
-      : {}),
-  },
-}));
+});

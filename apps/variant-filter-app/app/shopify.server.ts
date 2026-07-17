@@ -1,8 +1,11 @@
-import { shopifyApp } from "@shopify/shopify-app-remix/server";
+import {
+  ApiVersion,
+  shopifyApp,
+} from "@shopify/shopify-app-react-router/server";
 import { KVSessionStorage } from "@shopify/shopify-app-session-storage-kv";
 import { registerMetafieldDefinition } from "~/graphql/metafields.server";
-import type { AppLoadContext } from "@remix-run/cloudflare";
-import type { Env } from "../server";
+import type { AppLoadContext } from "react-router";
+import type { Env } from "../workers/app";
 
 let shopify: ReturnType<typeof shopifyApp> | null = null;
 // Kept separate so we can refresh the KV namespace binding on every request.
@@ -17,27 +20,23 @@ function createShopify(env: Env) {
     apiSecretKey: env.SHOPIFY_API_SECRET,
     appUrl: env.SHOPIFY_APP_URL,
     scopes: ["read_products", "write_products"],
-    apiVersion: "2025-04" as any,
-    // Cast: `@shopify/shopify-app-remix` and the KV session-storage package
-    // resolve `@shopify/shopify-api` from different paths, which TS treats as
-    // structurally incompatible. The runtime shape is identical.
-    sessionStorage: kvStorage as any,
+    apiVersion: ApiVersion.July26,
+    sessionStorage: kvStorage,
     hooks: {
-      afterAuth: async ({ session, admin }) => {
-        shopify!.registerWebhooks({ session }).catch((err: unknown) => {
-          console.error("[variant-filter] registerWebhooks failed:", err);
-        });
+      // Webhook subscriptions are declared in shopify.app.toml
+      // ([[webhooks.subscriptions]]) and synced by `shopify app deploy` —
+      // no registerWebhooks call here.
+      afterAuth: async ({ admin }) => {
         try {
-          // The real admin client has a richer signature than what the helper
-          // expects; cast to the minimal shape `registerMetafieldDefinition`
-          // uses (it only calls `graphql(query, { variables })`).
-          await registerMetafieldDefinition(admin as never);
+          await registerMetafieldDefinition(admin);
         } catch (err) {
-          console.error("[variant-filter] registerMetafieldDefinition failed:", err);
+          console.error(
+            "[variant-filter] registerMetafieldDefinition failed:",
+            err
+          );
         }
       },
     },
-    future: { unstable_newEmbeddedAuthStrategy: true },
   });
 }
 
@@ -52,13 +51,10 @@ export function getShopify(env: Env) {
   return shopify;
 }
 
-export async function authenticate(
-  request: Request,
-  context: AppLoadContext
-) {
-  return getShopify(context.env).authenticate.admin(request);
+export async function authenticate(request: Request, context: AppLoadContext) {
+  return getShopify(context.cloudflare.env).authenticate.admin(request);
 }
 
 export async function login(request: Request, context: AppLoadContext) {
-  return getShopify(context.env).login(request);
+  return getShopify(context.cloudflare.env).login(request);
 }

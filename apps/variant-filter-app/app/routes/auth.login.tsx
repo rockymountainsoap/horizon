@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { login } from "~/shopify.server";
 
 // The Shopify library routes /auth/login here and expects shopify.login()

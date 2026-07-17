@@ -1,3 +1,5 @@
+import type { AdminApiContext } from "@shopify/shopify-app-react-router/server";
+
 export const REGISTER_DEFINITION = `#graphql
   mutation RegisterVariantFilterDefinition($definition: MetafieldDefinitionInput!) {
     metafieldDefinitionCreate(definition: $definition) {
@@ -26,9 +28,9 @@ const DEFINITION_INPUT = {
   access: { storefront: "PUBLIC_READ" },
 };
 
-export async function registerMetafieldDefinition(admin: {
-  graphql: (query: string, options?: { variables?: unknown }) => Promise<Response>;
-}): Promise<void> {
+export async function registerMetafieldDefinition(
+  admin: AdminApiContext
+): Promise<void> {
   const response = await admin.graphql(REGISTER_DEFINITION, {
     variables: { definition: DEFINITION_INPUT },
   });

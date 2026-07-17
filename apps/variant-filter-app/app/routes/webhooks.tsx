@@ -1,10 +1,10 @@
-import type { ActionFunctionArgs } from "@remix-run/cloudflare";
+import type { ActionFunctionArgs } from "react-router";
 import { getShopify } from "~/shopify.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
-  const { topic, shop } = await getShopify(context.env).authenticate.webhook(
-    request
-  );
+  const { topic, shop } = await getShopify(
+    context.cloudflare.env
+  ).authenticate.webhook(request);
 
   switch (topic) {
     case "APP_UNINSTALLED":

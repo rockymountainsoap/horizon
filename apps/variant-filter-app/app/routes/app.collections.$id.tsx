@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { json, redirect } from "@remix-run/cloudflare";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { redirect } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
 import {
   Form,
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
-} from "@remix-run/react";
+} from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   Banner,
   BlockStack,
@@ -97,7 +102,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
     )
   );
 
-  return json({
+  return {
     collection: {
       id: colData.collection.id,
       title: colData.collection.title,
@@ -105,14 +110,15 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       rule: parseRule(colData.collection.metafield?.value),
     },
     optionNames,
-  });
+  };
 }
 
-export async function action({
-  request,
-  context,
-  params,
-}: ActionFunctionArgs): Promise<Response> {
+// Ensure Shopify's reauth/CSP headers survive on responses thrown by
+// authenticate().
+export const headers: HeadersFunction = (headersArgs) =>
+  boundary.headers(headersArgs);
+
+export async function action({ request, context, params }: ActionFunctionArgs) {
   const { admin } = await authenticate(request, context);
   const gid = `gid://shopify/Collection/${params.id}`;
   const form = await request.formData();
@@ -130,18 +136,18 @@ export async function action({
       const { data } = (await res.json()) as DeleteMetafieldsResponse;
       const errs = data?.metafieldsDelete?.userErrors ?? [];
       if (errs.length > 0) {
-        return json<ActionResult>({
+        return {
           success: false,
           errors: { api: [errs[0].message] },
-        });
+        } satisfies ActionResult;
       }
       return redirect("/app");
     } catch (err) {
       console.error("[variant-filter] clear failed:", err);
-      return json<ActionResult>({
+      return {
         success: false,
         errors: { api: ["Could not reach Shopify to clear the rule."] },
-      });
+      } satisfies ActionResult;
     }
   }
 
@@ -162,10 +168,10 @@ export async function action({
 
   const parsed = FilterRuleSchema.safeParse(raw);
   if (!parsed.success) {
-    return json<ActionResult>({
+    return {
       success: false,
       errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
-    });
+    } satisfies ActionResult;
   }
 
   try {
@@ -186,28 +192,25 @@ export async function action({
     const apiErrors = data?.metafieldsSet?.userErrors ?? [];
 
     if (apiErrors.length > 0) {
-      return json<ActionResult>({
+      return {
         success: false,
         errors: { api: apiErrors.map((e) => e.message) },
-      });
+      } satisfies ActionResult;
     }
 
-    return json<ActionResult>({ success: true, errors: {} });
+    return { success: true, errors: {} } satisfies ActionResult;
   } catch (err) {
     console.error("[variant-filter] save failed:", err);
-    return json<ActionResult>({
+    return {
       success: false,
       errors: { api: ["Could not reach Shopify to save the rule."] },
-    });
+    } satisfies ActionResult;
   }
 }
 
 export default function CollectionEditor() {
   const { collection, optionNames } = useLoaderData<typeof loader>();
-  // `useActionData` infers a union that includes `Response` (from `redirect`).
-  // Redirects don't surface as actionData on the next render, so cast to the
-  // narrower shape that's actually returned to the component.
-  const actionData = useActionData() as ActionResult | undefined;
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submit = useSubmit();
   const isSaving = navigation.formData?.get("intent") === "save";

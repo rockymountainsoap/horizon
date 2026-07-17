@@ -1,4 +1,5 @@
-import type { LoaderFunctionArgs } from "@remix-run/cloudflare";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "~/shopify.server";
 
 // Catch-all for all /auth/* paths (OAuth install, /auth/callback,
@@ -8,3 +9,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   await authenticate(request, context);
   return null;
 };
+
+// Ensure Shopify's reauth/redirect headers survive on thrown responses.
+export const headers: HeadersFunction = (headersArgs) =>
+  boundary.headers(headersArgs);
