@@ -31,6 +31,7 @@
   --r-color-soft-green: #cdd1bb;  /* Rocky Soft Green */
   --r-color-taupe:      #bbbe94;  /* Taupey Green */
   --r-color-sage:       #537044;  /* Fresh Sage */
+  --r-color-paper:      #f8f5ef;  /* warm off-white page surface — the design's "white" (a light Rocky Cream tint) */
 
   /* Typography */
   --r-font-display: var(--font-heading--family); /* was var(--font-primary--family) — undefined token */
