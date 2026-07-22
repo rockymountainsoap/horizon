@@ -72,13 +72,22 @@ Three-tier letter-spacing tokens in `r-base.css`: `--r-tracking-tight: 0.02em`
 `--r-tracking-wide: 0.10em` (wide uppercase micro-labels).
 
 **Global (`r-fonts.liquid :root`)** — fixed px, weight **400**, tight tracking, no case:
-h1 30 / h2 24 / h3 20 / h4 18 / h5 16 / h6 14 px; **paragraph 12px** (floored from Figma
-11). Headings are deliberately Regular 400 per the design (a large, intended change from
-the old Inter-Bold clamps).
+h1 30 / h2 24 / h3 20 / h4 18 / h5 16 / h6 14 px; **paragraph 13px** (raised from Figma
+11 for legibility — see Accessibility). Headings are deliberately Regular 400 per the
+design (a large, intended change from the old Inter-Bold clamps).
+
+### Accessibility pass (browser-audited, WCAG 2.1)
+Live PDP audit: **contrast passes AA everywhere** — primary text (black 81%α on white) is
+**13:1** (AAA); the smallest muted label is 4.76:1 (AA). The issue was **size**, not
+contrast. Adjustments: global body 12→**13px**, PDP value 12→**13px**, PDP label 11→**12px**,
+so **all running/label text is now ≥12px**. The only sub-12px text left is superscript
+footnote markers (`.r-pdp-ingredients__body sup`, 0.7em — correctly small, left as-is) and
+the numeric cart-count badge. Sizes are `rem`-based, so they respond to browser zoom /
+user font-size (WCAG 1.4.4).
 
 **PDP (component parity):**
-- `--r-pdp-value-size` 14→**12px** (body/price/controls, floored), `--r-pdp-label-size`
-  13→**11px** (uppercase micro-labels), in `r-base.css`.
+- `--r-pdp-value-size` 14→**13px** (body/price/controls), `--r-pdp-label-size`
+  13→**12px** (uppercase micro-labels), in `r-base.css`.
 - Product title `<h1>` scoped to **18px/400** in `_product-details.liquid` (global h1 30px
   is for Home).
 - Ad-hoc `letter-spacing` (0.06/0.08em) across `r-pdp-subtitle/badge/guarantees/attribute`

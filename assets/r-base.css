@@ -587,8 +587,8 @@ r-cart-bumpers[hidden],
      is never a mystery if a token is ever undefined.
        label = uppercase micro-labels (SIZE / SCENT / breadcrumb / subtitle …)
        value = body copy, prices, option values, reviews, controls */
-  --r-pdp-label-size: 0.6875rem; /* 11px — Figma uppercase micro-label tier */
-  --r-pdp-value-size: 0.75rem; /* 12px — Figma body/value (11px floored for legibility) */
+  --r-pdp-label-size: 0.75rem; /* 12px — uppercase micro-label (bumped from 11 for a11y) */
+  --r-pdp-value-size: 0.8125rem; /* 13px — body/value (bumped from Figma 11 for a11y) */
 }
 
 /* -----------------------------------------------------------------------------
