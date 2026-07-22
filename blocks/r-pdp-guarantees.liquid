@@ -1,0 +1,156 @@
+{%- liquid
+  # Rocky PDP guarantees — the "Love it or return it · Free shipping over $60 CAD"
+  # line beneath Add to bag. Each link opens a Rocky right-side drawer
+  # (snippets/r-side-drawer.liquid) whose copy comes from theme settings (Theme
+  # settings → Rocky — Product page), so the merchant edits both the link label
+  # and the drawer body without touching code.
+  #
+  # The drawer matches the cart drawer (same <dialog-component> engine, animation
+  # and backdrop) — no bespoke JS. A link renders only when its label setting is
+  # non-empty, so either guarantee can be turned off by clearing its label.
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+
+  assign returns_label = settings.pdp_returns_label | strip
+  assign shipping_label = settings.pdp_shipping_label | strip
+  assign has_returns = false
+  assign has_shipping = false
+  if returns_label != blank
+    assign has_returns = true
+  endif
+  if shipping_label != blank
+    assign has_shipping = true
+  endif
+
+  assign returns_id = 'pdp-returns-' | append: block.id
+  assign shipping_id = 'pdp-shipping-' | append: block.id
+-%}
+
+{%- if has_returns or has_shipping -%}
+  <div class="r-pdp-guarantees color-{{ scheme }}" {{ block.shopify_attributes }}>
+    <ul class="r-pdp-guarantees__list">
+      {%- if has_returns -%}
+        <li class="r-pdp-guarantees__item">
+          {%- capture returns_trigger -%}
+            <button type="button" class="button-unstyled r-pdp-guarantees__link" on:click="/showDialog" aria-haspopup="dialog">
+              {{ returns_label }}
+            </button>
+          {%- endcapture -%}
+          {%- capture returns_body -%}
+            <div class="rte">{{ settings.pdp_returns_body }}</div>
+          {%- endcapture -%}
+          {% render 'r-side-drawer',
+            id: returns_id,
+            heading: returns_label,
+            trigger: returns_trigger,
+            content: returns_body
+          %}
+        </li>
+      {%- endif -%}
+
+      {%- if has_shipping -%}
+        <li class="r-pdp-guarantees__item">
+          {%- capture shipping_trigger -%}
+            <button type="button" class="button-unstyled r-pdp-guarantees__link" on:click="/showDialog" aria-haspopup="dialog">
+              {{ shipping_label }}
+            </button>
+          {%- endcapture -%}
+          {%- capture shipping_body -%}
+            <div class="rte">{{ settings.pdp_shipping_body }}</div>
+          {%- endcapture -%}
+          {% render 'r-side-drawer',
+            id: shipping_id,
+            heading: shipping_label,
+            trigger: shipping_trigger,
+            content: shipping_body
+          %}
+        </li>
+      {%- endif -%}
+    </ul>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-guarantees__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--r-space-2xs, 8px) var(--r-space-sm, 16px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .r-pdp-guarantees__item {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Middot separator between the links, matching the mockup. */
+  .r-pdp-guarantees__item + .r-pdp-guarantees__item::before {
+    content: "·";
+    margin-inline-end: var(--r-space-sm, 16px);
+    color: var(--color-foreground-secondary, currentcolor);
+  }
+
+  .r-pdp-guarantees__link {
+    padding: 0;
+    font-size: var(--r-pdp-label-size, var(--font-size--xs, 0.8125rem));
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    color: var(--color-foreground);
+    cursor: pointer;
+  }
+
+  .r-pdp-guarantees__link:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  .r-pdp-guarantees__link:focus-visible {
+    outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+    outline-offset: 2px;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_guarantees",
+  "tag": null,
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "t:content.r_pdp_guarantees_block_info"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_guarantees",
+      "category": "Rocky — PDP",
+      "settings": {
+        "inherit_color_scheme": true
+      }
+    }
+  ]
+}
+{% endschema %}

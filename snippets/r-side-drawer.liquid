@@ -1,0 +1,143 @@
+{% doc %}
+  Rocky universal right-side drawer — a reusable panel that looks and animates
+  exactly like the cart drawer. It composes Horizon's global <dialog-component>
+  engine (assets/dialog.js: native showModal focus-trap, scroll-lock, animated
+  close, backdrop-click + Escape) with the shared `dialog-modal dialog-drawer`
+  classes (right slide-in via the `move-and-fade` keyframe + dimmed backdrop).
+  No bespoke JS — dialog.js is already loaded globally by snippets/scripts.liquid.
+
+  Render an inline trigger by passing `trigger` (its markup must contain
+  `on:click="/showDialog"`), or open it from anywhere else by `id` with
+  `on:click="#{id}/showDialog"`.
+
+  @param {string} id - Unique id for the dialog-component (enables external triggers + labelling).
+  @param {string} [heading] - Visible drawer heading.
+  @param {string} [trigger] - Captured HTML for an inline trigger button (must include on:click="/showDialog").
+  @param {string} [content] - Captured HTML for the drawer body.
+  @param {string} [scheme] - Color scheme suffix (defaults to settings.drawer_color_scheme).
+  @param {string} [panel_class] - Extra class(es) for the dialog panel.
+
+  @example
+  {% capture body %}<div class="rte">{{ settings.pdp_returns_body }}</div>{% endcapture %}
+  {% capture trigger %}<button class="link" on:click="/showDialog">Love it or return it</button>{% endcapture %}
+  {% render 'r-side-drawer', id: 'pdp-returns', heading: 'Love it or return it', trigger: trigger, content: body %}
+{% enddoc %}
+
+{%- liquid
+  assign drawer_scheme = scheme | default: settings.drawer_color_scheme
+  assign drawer_id = id | default: 'r-side-drawer'
+-%}
+
+<dialog-component id="{{ drawer_id }}" class="r-side-drawer">
+  {{ trigger }}
+
+  <dialog
+    ref="dialog"
+    class="dialog-modal dialog-drawer r-side-drawer__panel color-{{ drawer_scheme }} {{ panel_class }}"
+    scroll-lock
+    aria-labelledby="{{ drawer_id }}-heading"
+  >
+    <div class="r-side-drawer__inner">
+      <header class="r-side-drawer__header">
+        <h2 id="{{ drawer_id }}-heading" class="r-side-drawer__heading h5">{{ heading }}</h2>
+        <button
+          ref="closeButton"
+          type="button"
+          class="button button-unstyled close-button r-side-drawer__close"
+          on:click="/closeDialog"
+          aria-label="{{ 'accessibility.close_dialog' | t }}"
+        >
+          <span class="svg-wrapper">{{- 'icon-close.svg' | inline_asset_content -}}</span>
+        </button>
+      </header>
+
+      <div class="r-side-drawer__body">{{ content }}</div>
+    </div>
+  </dialog>
+</dialog-component>
+
+{% stylesheet %}
+  /* Right-pinned, full-height panel — cloned from the cart drawer
+     (.cart-drawer__dialog). The slide-in/out + backdrop come from the shared
+     `dialog-modal dialog-drawer` rules in base.css, so this matches the cart. */
+  .r-side-drawer__panel {
+    --r-side-drawer-padding: var(--padding-xl);
+    --r-side-drawer-padding-desktop: var(--padding-2xl);
+
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    margin: 0 0 0 auto;
+    padding: 0;
+    border: none;
+    border-inline-start: var(--style-border-drawer);
+    border-radius: 0;
+    box-shadow: var(--shadow-drawer);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+
+    @media screen and (min-width: 750px) {
+      width: var(--sidebar-width);
+      max-width: 95vw;
+    }
+  }
+
+  /* Full height while open (matches the cart drawer). */
+  .r-side-drawer__panel:modal {
+    max-height: 100dvh;
+    overflow-y: hidden;
+  }
+
+  .r-side-drawer__inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .r-side-drawer__header {
+    flex: 0 0 auto;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-xs);
+    padding: var(--r-side-drawer-padding);
+    background-color: var(--color-background);
+
+    @media screen and (min-width: 750px) {
+      padding-inline: var(--r-side-drawer-padding-desktop);
+    }
+  }
+
+  .r-side-drawer__heading {
+    margin: 0;
+  }
+
+  /* Match the cart close-button offset (base .close-button is fixed top/right). */
+  .r-side-drawer__close {
+    top: var(--margin-sm);
+    margin-right: calc(var(--padding-sm) * -1);
+
+    @media screen and (max-width: 749px) {
+      top: var(--margin-2xs);
+    }
+  }
+
+  .r-side-drawer__body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 0 var(--r-side-drawer-padding) var(--r-side-drawer-padding);
+
+    @media screen and (min-width: 750px) {
+      padding-inline: var(--r-side-drawer-padding-desktop);
+    }
+  }
+
+  .r-side-drawer__body > :first-child {
+    margin-block-start: 0;
+  }
+{% endstylesheet %}

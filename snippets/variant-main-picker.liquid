@@ -35,6 +35,11 @@
     {% endif %}
   >
     <form class="variant-picker__form">
+      {%- # Two passes so ordinary options (Size) render before combined-listing
+        # options (Scent, whose values carry product_url). Options are visited in
+        # their natural order within each pass; each renders in exactly one pass. -%}
+      {%- assign r_option_passes = 'regular,combined' | split: ',' -%}
+      {%- for r_pass in r_option_passes -%}
       {%- for product_option in product_resource.options_with_values -%}
         {%- liquid
           assign swatch_count = product_option.values | map: 'swatch' | compact | size
@@ -53,8 +58,32 @@
             assign option_id_attribute = 'data-option-id="' | append: fieldset_id | append: '"'
             assign longest_value = 0
           endif
+
+          # Combined-listing options carry a product_url on each value (each value
+          # is a sibling product, e.g. a Scent). Rocky always renders those as a
+          # dropdown to match the PDP design, whatever the block's button setting —
+          # swatch options keep their swatch treatment. Ordinary options (Size) are
+          # unaffected and fall through to the existing button/dropdown branches.
+          assign connected_count = product_option.values | map: 'product_url' | compact | size
+          assign use_combined_dropdown = false
+          if connected_count > 0 and variant_style != 'swatch' and variant_style != 'swatch_dropdown'
+            assign use_combined_dropdown = true
+          endif
+
+          # Gate this option to one pass: regular options first, combined last.
+          assign is_combined_option = false
+          if connected_count > 0
+            assign is_combined_option = true
+          endif
+          assign render_this = false
+          if r_pass == 'regular' and is_combined_option == false
+            assign render_this = true
+          elsif r_pass == 'combined' and is_combined_option
+            assign render_this = true
+          endif
         -%}
 
+        {%- if render_this -%}
         {%- if product_option.values.size == 1 and variant_style != 'swatch' -%}
           <div
             class="variant-option"
@@ -68,6 +97,13 @@
               {{- product_option.selected_value -}}
             </span>
           </div>
+        {%- elsif use_combined_dropdown -%}
+          {%- assign r_scent_index = forloop.index0 -%}
+          {% render 'r-variant-scent-drawer',
+            product_option: product_option,
+            block: block,
+            option_index: r_scent_index
+          %}
         {%- elsif variant_style == 'swatch' or block_settings.variant_style == 'buttons' -%}
           {%- assign fieldset_index = forloop.index0 -%}
           <fieldset
@@ -156,65 +192,14 @@
             {% endif %}
           </fieldset>
         {%- elsif block_settings.variant_style == 'dropdowns' -%}
-          {%
-            # There is an opportunity to build a custom select component that will allow us to style the select element further (animation for dropdown, swatches shown in the dropdown options, etc)
-            # It's too bad as it mean rebuilding baked in behaviours but I think we've already done that for the locale selectors
-            # in dawn. So it might mean more time spent in setting it up but worth it for future updates/styling.
+          {% render 'variant-option-dropdown',
+            product_option: product_option,
+            block: block,
+            option_index: forloop.index0
           %}
-          {% liquid
-            assign property_being_updated = false
-            if settings.variant_swatch_width != settings.variant_swatch_height
-              assign property_being_updated = true
-              # (original width / original height) x new height (20px at the moment) = new width
-              assign new_width = settings.variant_swatch_width | times: 1.0 | divided_by: settings.variant_swatch_height | times: 20
-            endif
-          %}
-
-          <div class="variant-option variant-option--dropdowns">
-            <label for="Option-{{ block.id }}-{{ forloop.index0 }}">{{ product_option.name | escape }}</label>
-            <div
-              class="variant-option__select-wrapper"
-              style="
-                {%- if property_being_updated  -%}
-                  --variant-picker-swatch-width: clamp(10px,{{ new_width }}px, 50px);
-                {%- endif -%}
-              "
-            >
-              <select
-                id="Option-{{ block.id }}-{{ forloop.index0 }}"
-                name="options[{{ product_option.name | escape }}]"
-                class="variant-option__select"
-              >
-                {%- for product_option_value in product_option.values -%}
-                  <option
-                    value="{{ product_option_value | escape }}"
-                    data-input-id="{{ product_option.position }}-{{ forloop.index0 }}"
-                    data-option-value-id="{{ product_option_value.id }}"
-                    data-variant-id="{{ product_option_value.variant.id }}"
-                    data-connected-product-url="{{ product_option_value.product_url }}"
-                    {% if product_option_value.selected %}
-                      selected="selected"
-                    {% endif %}
-                  >
-                    {% if product_option_value.available == false %}
-                      {{ product_option_value | escape }} - {{ 'content.unavailable' | t }}
-                    {% else %}
-                      {{ product_option_value | escape }}
-                    {% endif %}
-                  </option>
-                {%- endfor -%}
-              </select>
-              <svg
-                aria-hidden="true"
-                focusable="false"
-                class="icon icon-caret"
-                viewBox="0 0 10 6"
-              >
-                {%- render 'icon', icon: 'caret' -%}
-              </svg>
-            </div>
-          </div>
         {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
       {%- endfor -%}
 
       <script type="application/json">

@@ -369,6 +369,9 @@
     }
   },
   "rocky": {
+    "pdp_breadcrumbs": {
+      "label": "Breadcrumb"
+    },
     "pdp_description": {
       "slab_of_soap": "1 slab = 16 bars of soap and saves your wallet 20%. Heads up — slabs do not arrive precut.",
       "promo_bath_bomb": "Buy 6 Bath Bombs for $39 CAD.",
@@ -380,6 +383,21 @@
     },
     "pdp_ingredients": {
       "updated_html": "We've updated how we list and share ingredient information on our products. <a href=\"/blogs/blog/how-to-read-rockys-product-ingredient-listings\" target=\"_blank\" rel=\"noopener\">Learn more.</a>"
+    },
+    "pdp_subscribe": {
+      "legend": "Purchase options",
+      "one_time": "One-time",
+      "subscribe": "Subscribe",
+      "subscribe_save": "Subscribe & Save {{ percent }}%",
+      "panel_heading": "Subscribe to the Rocky essentials you love",
+      "frequency_legend": "Delivery frequency",
+      "benefit_free_soap": "A free bar of soap from your second order onward",
+      "benefit_never_run_out": "Never run out of your everyday essentials",
+      "benefit_flexible": "Swap, skip, or cancel anytime",
+      "learn_more": "Learn more"
+    },
+    "pdp_options": {
+      "qty": "Qty"
     },
     "pdp_find_in_store": {
       "loading": "Loading inventory…",

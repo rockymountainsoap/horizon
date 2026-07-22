@@ -1,0 +1,320 @@
+{% doc %}
+  Renders the PDP One-time / Subscribe controls in their final position (server
+  rendered, zero CLS). buy-buttons.liquid calls this twice: `part: 'toggle'`
+  inside the QTY row, and `part: 'panel'` full-width below it. The
+  <r-pdp-subscribe> element wraps the toggle and references the panel by selector;
+  r-pdp-subscribe.js only hydrates behaviour (form wiring + reveal) once loaded —
+  it never moves the markup, so nothing shifts on load.
+
+  Only render when the product actually has selling plans.
+
+  @param {string} part - 'toggle' or 'panel'
+  @param {object} product - The product (for selling_plan_groups).
+  @param {object} section - The section (for scoping / section id).
+  @param {string} block_id - Unique id used to namespace input names.
+
+  @example
+  {% render 'r-pdp-subscribe', part: 'toggle', product: product, section: section, block_id: block.id %}
+{% enddoc %}
+
+{%- liquid
+  assign default_group = product.selling_plan_groups.first
+  assign default_plan = default_group.selling_plans.first
+
+  assign savings = ''
+  if default_plan != blank
+    for adjustment in default_plan.price_adjustments
+      if adjustment.value_type == 'percentage' and adjustment.value > 0
+        assign savings = adjustment.value
+        break
+      endif
+    endfor
+  endif
+-%}
+
+{%- if default_plan == blank -%}
+  {%- # No plans: render nothing. -%}
+{%- elsif part == 'toggle' -%}
+  <r-pdp-subscribe
+    class="r-pdp-subscribe"
+    data-section-id="{{ section.id }}"
+    data-default-plan="{{ default_plan.id }}"
+    data-active="false"
+  >
+    <script src="{{ 'r-pdp-subscribe.js' | asset_url }}" type="module"></script>
+
+    <fieldset class="r-pdp-subscribe__toggle" data-r-toggle>
+      <legend class="r-pdp-subscribe__legend visually-hidden">
+        {{ 'rocky.pdp_subscribe.legend' | t }}
+      </legend>
+
+      <label class="r-pdp-subscribe__option">
+        <input
+          class="r-pdp-subscribe__radio"
+          type="radio"
+          name="r-pdp-purchase-{{ block_id }}"
+          value="onetime"
+          checked
+        >
+        <span class="r-pdp-subscribe__text">{{ 'rocky.pdp_subscribe.one_time' | t }}</span>
+      </label>
+
+      <label class="r-pdp-subscribe__option">
+        <input
+          class="r-pdp-subscribe__radio"
+          type="radio"
+          name="r-pdp-purchase-{{ block_id }}"
+          value="subscribe"
+        >
+        <span class="r-pdp-subscribe__text">
+          {%- if savings != blank -%}
+            {{ 'rocky.pdp_subscribe.subscribe_save' | t: percent: savings }}
+          {%- else -%}
+            {{ 'rocky.pdp_subscribe.subscribe' | t }}
+          {%- endif -%}
+        </span>
+      </label>
+    </fieldset>
+  </r-pdp-subscribe>
+{%- elsif part == 'panel' -%}
+  <div class="r-pdp-subscribe__panel" data-r-panel data-section-id="{{ section.id }}" data-expanded="false" inert>
+    <div class="r-pdp-subscribe__panel-inner">
+      <p class="r-pdp-subscribe__heading">{{ 'rocky.pdp_subscribe.panel_heading' | t }}</p>
+
+      {%- if default_group.selling_plans.size > 1 -%}
+        <fieldset class="r-pdp-subscribe__frequency" data-r-frequency>
+          <legend class="r-pdp-subscribe__frequency-legend">
+            {{ 'rocky.pdp_subscribe.frequency_legend' | t }}
+          </legend>
+          <div class="r-pdp-subscribe__frequency-options">
+            {%- for plan in default_group.selling_plans -%}
+              <label class="r-pdp-subscribe__freq">
+                <input
+                  class="r-pdp-subscribe__freq-radio"
+                  type="radio"
+                  name="r-pdp-frequency-{{ block_id }}"
+                  value="{{ plan.id }}"
+                  {% if forloop.first %}checked{% endif %}
+                >
+                <span class="r-pdp-subscribe__freq-text">{{ plan.name }}</span>
+              </label>
+            {%- endfor -%}
+          </div>
+        </fieldset>
+      {%- endif -%}
+
+      <ul class="r-pdp-subscribe__benefits">
+        <li>{{ 'rocky.pdp_subscribe.benefit_free_soap' | t }}</li>
+        <li>{{ 'rocky.pdp_subscribe.benefit_never_run_out' | t }}</li>
+        <li>{{ 'rocky.pdp_subscribe.benefit_flexible' | t }}</li>
+      </ul>
+
+      {%- if settings.pdp_subscribe_learn_more_url != blank -%}
+        <a
+          class="r-pdp-subscribe__learn-more"
+          href="{{ settings.pdp_subscribe_learn_more_url }}"
+        >
+          {{ 'rocky.pdp_subscribe.learn_more' | t }}
+        </a>
+      {%- endif -%}
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  /* The coordinator element wraps the toggle and sits at the right end of the
+     QTY row; the panel is rendered separately (full-width, below the row). Both
+     are server-rendered in place, so the JS never moves them — zero load shift. */
+  .r-pdp-subscribe {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: auto;
+  }
+
+  /* ---- Toggle (One-time / Subscribe) ---- */
+  .r-pdp-subscribe__toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--r-space-md, 20px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .r-pdp-subscribe__option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--r-space-2xs, 8px);
+    min-height: var(--minimum-touch-target, 44px);
+    cursor: pointer;
+    font-size: var(--r-pdp-value-size, var(--font-size--sm, 0.875rem));
+    color: var(--color-foreground);
+  }
+
+  .r-pdp-subscribe__radio {
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    margin: 0;
+    accent-color: var(--color-foreground);
+    cursor: pointer;
+  }
+
+  .r-pdp-subscribe__radio:focus-visible {
+    outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+    outline-offset: 2px;
+  }
+
+  /* ---- Reveal panel ----
+     Height animates with the grid-rows 0fr→1fr technique; the inner content
+     fades/slides in. Timing uses Horizon's animation tokens. Server-rendered
+     collapsed + inert, so it costs no layout on load.
+
+     Verification note: layout transitions do not advance in hidden/background
+     tabs (Chrome pauses rendering frames), so headless/backgrounded checks of
+     this reveal read a frozen height — measure with the tab visible, or with
+     transitions disabled to assert end states. */
+  .r-pdp-subscribe__panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--animation-speed-slow, 0.2s) var(--animation-easing, ease-in-out);
+  }
+
+  .r-pdp-subscribe__panel[data-expanded='true'] {
+    grid-template-rows: 1fr;
+  }
+
+  .r-pdp-subscribe__panel-inner {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .r-pdp-subscribe__panel-inner > * {
+    margin-block: 0;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity var(--animation-speed-slow, 0.2s) var(--animation-easing, ease-in-out),
+      transform var(--animation-speed-slow, 0.2s) var(--animation-easing, ease-in-out);
+  }
+
+  .r-pdp-subscribe__panel[data-expanded='true'] .r-pdp-subscribe__panel-inner > * {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .r-pdp-subscribe__panel[data-expanded='true'] .r-pdp-subscribe__panel-inner > :nth-child(2) {
+    transition-delay: 40ms;
+  }
+  .r-pdp-subscribe__panel[data-expanded='true'] .r-pdp-subscribe__panel-inner > :nth-child(3) {
+    transition-delay: 80ms;
+  }
+  .r-pdp-subscribe__panel[data-expanded='true'] .r-pdp-subscribe__panel-inner > :nth-child(4) {
+    transition-delay: 120ms;
+  }
+
+  .r-pdp-subscribe__panel-inner > :first-child {
+    margin-block-start: var(--r-space-md, 20px);
+  }
+
+  .r-pdp-subscribe__heading {
+    font-size: var(--r-pdp-value-size, var(--font-size--sm, 0.875rem));
+    font-weight: 600;
+    color: var(--color-foreground);
+  }
+
+  .r-pdp-subscribe__frequency {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .r-pdp-subscribe__frequency-legend {
+    padding: 0;
+    margin-block-end: var(--r-space-2xs, 8px);
+    font-size: var(--r-pdp-label-size, var(--font-size--xs, 0.8125rem));
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(var(--color-foreground-rgb) / 0.55);
+  }
+
+  .r-pdp-subscribe__frequency-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--r-space-2xs, 8px);
+  }
+
+  .r-pdp-subscribe__freq {
+    cursor: pointer;
+  }
+
+  .r-pdp-subscribe__freq-radio {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .r-pdp-subscribe__freq-text {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--minimum-touch-target, 44px);
+    padding-inline: var(--r-space-sm, 16px);
+    border: 1px solid rgb(var(--color-foreground-rgb) / 0.25);
+    border-radius: var(--r-radius-pill, 999px);
+    font-size: var(--r-pdp-value-size, var(--font-size--sm, 0.875rem));
+    color: var(--color-foreground);
+    transition: border-color var(--animation-speed, 0.125s) var(--animation-easing, ease-in-out),
+      background-color var(--animation-speed, 0.125s) var(--animation-easing, ease-in-out);
+  }
+
+  .r-pdp-subscribe__freq-radio:checked + .r-pdp-subscribe__freq-text {
+    border-color: var(--color-foreground);
+    background: rgb(var(--color-foreground-rgb) / 0.06);
+  }
+
+  .r-pdp-subscribe__freq-radio:focus-visible + .r-pdp-subscribe__freq-text {
+    outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+    outline-offset: 2px;
+  }
+
+  .r-pdp-subscribe__benefits {
+    display: flex;
+    flex-direction: column;
+    gap: var(--r-space-2xs, 8px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--r-pdp-value-size, var(--font-size--sm, 0.875rem));
+    color: var(--color-foreground);
+  }
+
+  .r-pdp-subscribe__benefits li {
+    position: relative;
+    padding-inline-start: 1.4em;
+  }
+
+  .r-pdp-subscribe__benefits li::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 0.55em;
+    inline-size: 0.5em;
+    block-size: 0.5em;
+    border-radius: 50%;
+    background: var(--color-foreground);
+  }
+
+  .r-pdp-subscribe__learn-more {
+    display: inline-block;
+    font-size: var(--r-pdp-value-size, var(--font-size--sm, 0.875rem));
+    color: var(--color-foreground);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .r-pdp-subscribe__panel,
+    .r-pdp-subscribe__panel-inner > * {
+      transition: none;
+    }
+  }
+{% endstylesheet %}

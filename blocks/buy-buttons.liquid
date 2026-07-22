@@ -105,7 +105,36 @@
             </div>
           {%- endif -%}
 
-          {% content_for 'block', type: 'quantity', id: 'quantity' %}
+          {% comment %}
+            QTY row — labels the stepper; on subscription products the
+            One-time/Subscribe toggle renders inline (right) and its reveal
+            panel renders full-width below. Both are server-rendered in place
+            (no client-side moves) so there is no load-time layout shift.
+          {% endcomment %}
+          {%- assign r_has_selling_plans = false -%}
+          {%- if product.selling_plan_groups.size > 0 -%}
+            {%- assign r_has_selling_plans = true -%}
+          {%- endif -%}
+          <div class="r-pdp-qty-row">
+            <span class="r-pdp-qty-row__label">{{ 'rocky.pdp_options.qty' | t }}</span>
+            {% content_for 'block', type: 'quantity', id: 'quantity' %}
+            {%- if r_has_selling_plans -%}
+              {% render 'r-pdp-subscribe',
+                part: 'toggle',
+                product: product,
+                section: section,
+                block_id: block.id
+              %}
+            {%- endif -%}
+          </div>
+          {%- if r_has_selling_plans -%}
+            {% render 'r-pdp-subscribe',
+              part: 'panel',
+              product: product,
+              section: section,
+              block_id: block.id
+            %}
+          {%- endif -%}
 
           {%- if has_quantity_rules -%}
             <div
@@ -223,6 +252,11 @@
             add_to_cart_text: add_to_cart_text
           %}
 
+          {% comment %}
+            Rocky: "Buy it now" (accelerated-checkout) stays wired here because
+            other sections reference this static block target; it is hidden on
+            the PDP via CSS (.product-details rule in r-base.css).
+          {% endcomment %}
           {% content_for 'block',
             type: 'accelerated-checkout',
             id: 'accelerated-checkout',

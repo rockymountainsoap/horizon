@@ -47,6 +47,77 @@
 }
 
 /* =============================================================================
+   GLOBAL PAGE SHELL — max width & side gutters
+   -----------------------------------------------------------------------------
+   Rocky drives the page shell from CSS rather than the theme editor's
+   "Page width" select (settings.page_width), because:
+
+     1. config/settings_data.json is merchant-owned and is excluded from
+        `shopify theme push -e staging`, so a width chosen there never ships
+        with the code — it has to be re-set by hand on every target theme.
+     2. The select offers only three coarse presets (narrow 90rem / normal
+        120rem / wide 150rem) and no control at all over the gutters.
+
+   These four tokens are the single source of truth for the shell. Tweak them
+   here; every section, grid and page inherits the change. The theme editor's
+   Page width setting is intentionally inert — whichever preset is selected,
+   the override below wins.
+
+   Upstream consumes --page-content-width / --page-margin / --page-width to
+   build the section grid (see "Set up page widths & margins" in base.css), and
+   --sidebar-width for the PDP details column. We deliberately reassign those
+   four upstream names from Rocky tokens; this is the documented exception to
+   the "never redefine upstream variable names" rule at the top of this file,
+   because the shell geometry cannot be redirected any other way.
+
+   Specificity note: `body[class*='page-width-']` is (0,1,1), which outranks
+   upstream's `.page-width-narrow` (0,1,0) and the `:root` token block, so the
+   override holds regardless of the selected preset or stylesheet order.
+   ============================================================================= */
+
+:root {
+  /* Max width of page content, excluding gutters.
+     Upstream reference points: 90rem narrow, 120rem normal, 150rem wide. */
+  --r-shell-max-width: 150rem;
+
+  /* Side gutters. Mobile applies below 750px, desktop at/above it.
+     Kept deliberately tight (<24px) for an editorial, near-full-bleed feel —
+     content sits close to the viewport edge and imagery reads large. */
+  --r-shell-gutter: 16px;
+  --r-shell-gutter-desktop: 20px;
+
+  /* Width of the PDP details/info column beside the media gallery.
+     Applies between 750px and 989px only — at 990px and up the PDP switches
+     to the fluid split below. Also sets --sidebar-width globally (drawers). */
+  --r-shell-sidebar-width: 25rem;
+
+  /* PDP media / details split at >=990px (consumed by
+     snippets/product-information-content.liquid).
+
+     The media column is the anchor: capped at 48vw so the gallery sits just
+     UNDER half the viewport (per the approved design — imagery ~49%, info
+     ~51%), and the details pane absorbs the remainder (never below a readable
+     26rem; on very wide screens its extra room reads as calm whitespace to the
+     right of the copy, exactly like the mockup). Tune the balance by nudging
+     the vw term: 50vw = even halves, 45vw = smaller gallery. */
+  --r-shell-pdp-media-col: minmax(0, 48vw);
+  --r-shell-pdp-details-col: minmax(26rem, 1fr);
+}
+
+body[class*='page-width-'] {
+  --page-content-width: var(--r-shell-max-width);
+  --page-margin: var(--r-shell-gutter);
+  --page-width: calc(var(--page-content-width) + (var(--page-margin) * 2));
+  --sidebar-width: var(--r-shell-sidebar-width);
+}
+
+@media screen and (min-width: 750px) {
+  body[class*='page-width-'] {
+    --page-margin: var(--r-shell-gutter-desktop);
+  }
+}
+
+/* =============================================================================
    Rocky Layout Utilities
    ============================================================================= */
 
@@ -58,6 +129,59 @@
   @media screen and (min-width: 750px) {
     padding-inline: var(--r-space-xl);
   }
+}
+
+/* -----------------------------------------------------------------------------
+   .r-bleed — break content out to the full viewport width from ANY depth.
+
+   PREFER the grid approach where you can (see
+   .cursor/references/full-width-content.md): a section's `content_width`
+   setting, or upstream's `.force-full-width`. Both use the section grid and are
+   immune to scrollbar rounding. They only work on a DIRECT child of `.section`
+   though — content nested deeper (inside a group block, a card, a snippet)
+   needs this utility instead.
+
+   Technique: `margin-inline: calc(50% - 50vw)` re-centres the box on the
+   viewport, so it lands edge-to-edge no matter how deeply it is nested. This
+   is measured and correct at depth 1 and depth 3.
+
+   Do NOT use --full-page-margin-inline-offset for this. That variable is
+   scoped to Marquee's specific context and overshoots by one gutter on each
+   side when applied to ordinary centre-column content (verified: -20px / +20px
+   past the viewport, which introduces a horizontal scrollbar).
+
+   CONSTRAINT: the element's containing block must be horizontally centred in
+   the viewport — true for section centre columns, NOT true inside an
+   off-centre sub-column (e.g. the PDP details sidebar), where it will land
+   skewed. Bleed from a centred ancestor instead.
+
+   SCROLLBAR: 100vw includes the classic scrollbar on platforms that reserve
+   space for it (Windows), so a bleed can overflow by the scrollbar width.
+   Where that matters, add `overflow-x: clip` to a wrapping ancestor.
+   --------------------------------------------------------------------------- */
+.r-bleed {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+
+/* Bleed on mobile only — content returns to the page grid at 750px and up. */
+@media screen and (min-width: 750px) {
+  .r-bleed--mobile-only {
+    width: auto;
+    margin-inline: 0;
+  }
+}
+
+@media screen and (max-width: 749px) {
+  .r-bleed--desktop-only {
+    width: auto;
+    margin-inline: 0;
+  }
+}
+
+/* Full-bleed band that still keeps its content on the page gutters. */
+.r-bleed--padded {
+  padding-inline: var(--page-margin);
 }
 
 /* =============================================================================
@@ -366,5 +490,361 @@ r-cart-bumpers[hidden],
   .r-cart-bumpers__item--enter,
   .r-cart-bumpers__item.removing {
     animation: none;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   PDP intro cluster — two-column fallback
+   Coordinates blocks that are composed together in templates/product.json:
+     - blocks/r-pdp-description.liquid  (<r-read-more class="r-pdp-description">)
+     - blocks/review.liquid             (.rating-wrapper)
+     - blocks/r-pdp-attribute.liquid    (.r-pdp-attribute — the "Made with" list)
+
+   The "Made with" list is rendered by the shared r-pdp-attribute block, so it
+   is detected by its .r-pdp-attribute class (within this row that block is only
+   ever the Made-with aside; the inline skin-type attribute lives outside it).
+
+   The cluster is a `group` row: a main column (price + description) beside an
+   aside column (reviews + "Made with"). The aside only earns its width when
+   there is "Made with" content to fill it — otherwise the main column is left
+   stranded at ~56% with dead space beside it.
+
+   Fallback (no .r-pdp-attribute anywhere in the row): both columns become
+   full-width rows and the aside is reordered ABOVE the main column, so the
+   review stars sit directly beneath the product title. Pure CSS — the markup
+   and DOM order are identical in both modes.
+
+   The row is identified structurally (it is the only flex row in the details
+   column containing the description) because `group` blocks cannot carry a
+   custom class.
+   --------------------------------------------------------------------------- */
+.product-details .layout-panel-flex--row:has(r-read-more.r-pdp-description) {
+  &:not(:has(.r-pdp-attribute)) {
+    flex-wrap: wrap;
+
+    /* Both columns span the full width, overriding the inline
+       --size-style-width the group block sets per-column. */
+    > .group-block {
+      flex-basis: 100%;
+      max-width: 100%;
+    }
+
+    /* The aside is the column that does NOT hold the description. */
+    > .group-block:not(:has(r-read-more.r-pdp-description)) {
+      order: -1;
+    }
+  }
+
+  /* An aside with nothing to show at all (no reviews AND no "Made with")
+     would still contribute a row gap — remove it from the layout entirely. */
+  > .group-block:not(:has(r-read-more.r-pdp-description)):not(:has(.rating-wrapper)):not(
+      :has(.r-pdp-attribute)
+    ) {
+    display: none;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   PDP option rows — SIZE / SCENT / SKIN TYPE
+   A single visual system for the product options: a small uppercase label in a
+   shared left column, the value(s) to its right, and a thin rule beneath each
+   row. SIZE is button-style values with a sliding underline; SCENT is a
+   combined-listing dropdown; SKIN TYPE is a display-only taxonomy value. They
+   are three separate blocks (variant-picker, variant-picker, r-pdp-attribute),
+   coordinated here so their labels and values line up into one column.
+
+   Scoped to .product-details so nothing outside the PDP info column is touched.
+   --------------------------------------------------------------------------- */
+.product-details {
+  --r-pdp-option-label-col: 7rem;
+  --r-pdp-option-pad: 0.85rem;
+  --r-pdp-option-rule: 1px solid rgb(var(--color-foreground-rgb) / 0.14);
+  /* Must match the _product-details block's `gap` (theme editor). Used to pull
+     the option blocks flush so their per-row rules form one continuous table
+     instead of being spaced apart by the column gap. */
+  --r-pdp-block-gap: 28px;
+
+  /* PDP TYPE SCALE — single source of truth for the info column.
+     Only TWO text sizes across the whole pane, so the hierarchy reads as one
+     system rather than a dozen near-misses. Everything in the details column
+     (labels vs. body/values) resolves to one of these. Change the pane's whole
+     rhythm from here; the fallbacks mirror the upstream token values so a rule
+     is never a mystery if a token is ever undefined.
+       label = uppercase micro-labels (SIZE / SCENT / breadcrumb / subtitle …)
+       value = body copy, prices, option values, reviews, controls */
+  --r-pdp-label-size: var(--font-size--xs, 0.8125rem); /* 13px */
+  --r-pdp-value-size: var(--font-size--sm, 0.875rem); /* 14px */
+}
+
+/* -----------------------------------------------------------------------------
+   PDP vertical rhythm — matched to the approved mockup. The details column uses
+   a uniform 28px block gap; these margins add the mockup's deliberate breathing
+   points on top of it (margins stack with flex gap):
+     breadcrumb ↔ badge      ~44px  (28 gap + 16)
+     intro copy ↔ SIZE row   ~60px  (28 gap + 24 + intro padding) — no divider
+                              line; whitespace does the separating, per mockup
+     guarantees ↔ accordion  ~60px  (28 gap + 24 + accordion padding)
+   --------------------------------------------------------------------------- */
+.product-details .r-pdp-breadcrumbs {
+  margin-block-end: var(--r-space-sm, 16px);
+}
+
+.product-details variant-picker {
+  margin-block-start: var(--r-space-md, 24px);
+}
+
+.product-details .accordion {
+  margin-block-start: var(--r-space-md, 24px);
+}
+
+/* Accordion row headings — the theme's `h6` preset renders them at 12px, out of
+   step with the pane. Pull to the value tier (14px); keep the preset's weight
+   (500) as a subtle section-header cue. Beats accordion.liquid's (0,2,0) rule. */
+.product-details .accordion .details__header {
+  font-size: var(--r-pdp-value-size);
+}
+
+/* SIZE and SCENT are one block (variant-picker) so they sit flush; SKIN TYPE and
+   the QTY/buy block are separate blocks the column gap pushes apart. Cancel that
+   gap so every option row is separated only by its own rule. */
+.product-details .r-pdp-attribute--inline,
+.product-details .buy-buttons-block {
+  margin-block-start: calc(var(--r-pdp-block-gap, 28px) * -1);
+}
+
+/* Shared label typography — the "SIZE / SCENT / SKIN TYPE" column. */
+.product-details .variant-option--buttons legend,
+.product-details .variant-option--dropdowns > label,
+.product-details .variant-option--dropdowns > .r-scent-drawer__label,
+.product-details .r-pdp-attribute--inline .r-pdp-attribute__label {
+  margin: 0;
+  padding: 0;
+  font-size: var(--r-pdp-label-size);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--color-foreground-rgb) / 0.55);
+}
+
+/* Rows sit flush; the rule between them does the separating (not margin). */
+.product-details .variant-option + .variant-option {
+  margin-top: 0;
+}
+
+/* ---- SIZE (button values with sliding underline) ---- */
+.product-details .variant-option--buttons {
+  /* Compact, left-aligned values (overrides the merchant equal-width grid). */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--r-space-2xs, 8px) var(--r-space-lg, 28px);
+
+  /* Reserve the shared left label column and drop "SIZE" into it. A <legend> is
+     rendered specially and cannot be a flex/grid item, so it is positioned out
+     of flow while staying a real legend that names the group for assistive tech. */
+  position: relative;
+  padding-block: var(--r-pdp-option-pad);
+  padding-inline-start: var(--r-pdp-option-label-col);
+  border-block-end: var(--r-pdp-option-rule);
+}
+
+.product-details .variant-option--buttons legend {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: var(--r-pdp-option-pad);
+  max-inline-size: var(--r-pdp-option-label-col);
+  line-height: var(--r-pdp-option-line-height, 1.7);
+}
+
+/* Compact, content-width values — the extra .variant-option--buttons scope
+   out-specifies the store's equal-width setting
+   (.variant-option--equal-width-buttons .variant-option__button-label). */
+.product-details .variant-option--buttons .variant-option__button-label {
+  min-width: 0;
+}
+
+/* Values become plain text: drop the box, padding, min-size and fill. Keep
+   `overflow: clip` (from base) so each label still masks its own sliding pill;
+   add a little bottom room for the underline to sit under the text. */
+.product-details .variant-option__button-label {
+  min-height: 0;
+  padding: 0 0 var(--r-space-2xs, 6px);
+  font-size: var(--r-pdp-value-size);
+  border: none;
+  /* Square the box: the label still uses `overflow: clip` (to mask the sliding
+     pills), so any border-radius here would round the underline's corners. */
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-foreground);
+}
+
+.product-details .variant-option__button-label:hover {
+  background: transparent;
+  border: none;
+  color: var(--color-foreground);
+}
+
+/* Remove the faux button borders drawn by the ::before / ::after layers; the
+   strikethrough SVG for unavailable variants is a separate element and stays. */
+.product-details .variant-option__button-label::before,
+.product-details .variant-option__button-label::after {
+  display: none;
+}
+
+/* The reshaped pill: a thin underline pinned to the bottom of the label. Horizon
+   still drives its horizontal offset (transform), so it slides on select with
+   the engine's own duration/easing (--animation-speed / --animation-easing). */
+.product-details .variant-option__button-label__pill {
+  inset: auto 0 0;
+  height: 2px;
+  border-radius: 0;
+  background: var(--color-foreground);
+}
+
+/* Horizon widens the moving pill to max(current, previous) so a filled pill
+   never visibly shrinks mid-slide. For a bare underline that leaves an overhang
+   past a shorter value, so pin the underline to each label's own text width. */
+.product-details
+  .variant-option__button-label:has([data-previous-checked='true'], [data-current-checked='true'])
+  .variant-option__button-label__pill {
+  width: 100%;
+}
+
+/* Keep a visible focus ring without the box. */
+.product-details .variant-option__button-label:has(:focus-visible) {
+  outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+  outline-offset: 3px;
+  border: none;
+}
+
+/* ---- SCENT (combined-listing dropdown) ---- */
+.product-details .variant-option--dropdowns {
+  display: grid;
+  grid-template-columns: var(--r-pdp-option-label-col) 1fr;
+  align-items: center;
+  padding-block: var(--r-pdp-option-pad);
+  border-block-end: var(--r-pdp-option-rule);
+}
+
+.product-details .variant-option--dropdowns > label,
+.product-details .variant-option--dropdowns > .r-scent-drawer__label {
+  align-self: center;
+}
+
+/* Flatten the select: no box, value text on the left, caret pinned right. */
+.product-details .variant-option--dropdowns .variant-option__select-wrapper {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.product-details .variant-option--dropdowns .variant-option__select {
+  padding: 0 1.5rem 0 0;
+  color: var(--color-foreground);
+  font-size: var(--r-pdp-value-size);
+}
+
+.product-details .variant-option--dropdowns .variant-option__select-wrapper .icon {
+  right: 0;
+  color: rgb(var(--color-foreground-rgb) / 0.6);
+}
+
+/* ---- SKIN TYPE (display-only taxonomy value) ---- */
+.product-details .r-pdp-attribute--inline {
+  display: grid;
+  grid-template-columns: var(--r-pdp-option-label-col) 1fr;
+  align-items: baseline;
+  gap: 0;
+  padding-block: var(--r-pdp-option-pad);
+  border-block-end: var(--r-pdp-option-rule);
+}
+
+.product-details .r-pdp-attribute--inline .r-pdp-attribute__label {
+  align-self: baseline;
+}
+
+.product-details .r-pdp-attribute--inline .r-pdp-attribute__value {
+  font-size: var(--r-pdp-value-size);
+  color: var(--color-foreground);
+}
+
+/* ---- QTY row (quantity stepper + docked One-time/Subscribe toggle) ----
+   The buy-buttons block renders the QTY row and a slot; r-pdp-subscribe.js moves
+   its toggle into that slot so QTY and the purchase-type control share one row.
+   The form's buttons stack full-width beneath it (Add to bag, then Buy it now). */
+.product-details .product-form-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.product-details .product-form-buttons > * {
+  width: 100%;
+  margin-block-start: var(--r-space-md, 20px);
+}
+
+/* The QTY row is flush with the option rows above; the subscribe panel sits
+   flush beneath the QTY row (so a collapsed panel adds no gap); the hidden error
+   span never contributes spacing. Everything else (Add to bag, Buy it now) keeps
+   the standard gap from the rule above. */
+.product-details .product-form-buttons > .r-pdp-qty-row,
+.product-details .product-form-buttons > .r-pdp-subscribe__panel,
+.product-details .product-form-buttons > .product-form-text__error {
+  margin-block-start: 0;
+}
+
+.product-details .r-pdp-qty-row {
+  display: flex;
+  align-items: center;
+  gap: var(--r-space-sm, 16px);
+  padding-block: var(--r-pdp-option-pad);
+  border-block-end: var(--r-pdp-option-rule);
+}
+
+.product-details .r-pdp-qty-row__label {
+  flex: 0 0 calc(var(--r-pdp-option-label-col) - var(--r-space-sm, 16px));
+  font-size: var(--r-pdp-label-size);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--color-foreground-rgb) / 0.55);
+}
+
+/* Flatten the stepper to bare − 1 + (mockup has no box). */
+.product-details .r-pdp-qty-row .quantity-selector {
+  border: none;
+  background: transparent;
+}
+
+/* Rocky: no "Buy it now" on the PDP — Add to cart is the single buy action.
+   The accelerated-checkout block stays wired (buy-buttons.liquid) because other
+   sections reference it as a static block target; it is just hidden here. */
+.product-details .accelerated-checkout-block {
+  display: none;
+}
+
+/* Mobile: label + stepper + One-time/Subscribe cannot share one line — the
+   toggle overflows the viewport edge. Wrap it onto its own full-width line
+   within the QTY row. No value-column indent here: with mobile type sizes the
+   two radios need the full row width to stay side-by-side (indenting forces
+   them to stack vertically). Desktop keeps the toggle pushed right, one line. */
+@media screen and (max-width: 749px) {
+  .product-details .r-pdp-qty-row {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .product-details .r-pdp-qty-row r-pdp-subscribe {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  /* If a very narrow viewport ever does force the radios to wrap, keep the
+     fallback compact — the 44px touch-target rows provide the separation. */
+  .product-details .r-pdp-qty-row .r-pdp-subscribe__toggle {
+    row-gap: 0;
   }
 }

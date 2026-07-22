@@ -12,61 +12,84 @@
   endif
 -%}
 
-<div class="r-pdp-description" {{ block.shopify_attributes }}>
-  {%- if description_top != blank -%}
-    <div class="r-pdp-description__rte">{{ description_top }}</div>
-  {%- endif -%}
+<script src="{{ 'r-read-more.js' | asset_url }}" type="module"></script>
 
-  {%- if description_bottom != blank -%}
-    <div class="r-pdp-description__rte">{{ description_bottom }}</div>
-  {%- endif -%}
-
-  {%- if product.type == 'Slab of Soap' -%}
-    <p class="r-pdp-description__note">{{ 'rocky.pdp_description.slab_of_soap' | t }}</p>
-  {%- endif -%}
-
-  {%- for tag in product.tags -%}
-    {%- if tag contains 'bath bomb offer' -%}
-      <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_bath_bomb' | t }}</p>
+<r-read-more class="r-pdp-description" data-expanded="false" {{ block.shopify_attributes }}>
+  <div class="r-pdp-description__content" ref="content">
+    {%- if description_top != blank -%}
+      <div class="r-pdp-description__rte">{{ description_top }}</div>
     {%- endif -%}
-    {%- if tag contains 'earth-promo' -%}
-      <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_earth' | t }}</p>
+
+    {%- if description_bottom != blank -%}
+      <div class="r-pdp-description__rte">{{ description_bottom }}</div>
     {%- endif -%}
-  {%- endfor -%}
 
-  {%- unless product.type == 'Accessories'
-    or product.type == 'Gift Card'
-    or product.type == 'Packaging'
-    or product.title contains 'Essentials Pouch' -%}
-    {%- liquid
-      assign meta_parts = ''
-      assign meta_parts = meta_parts | append: 'rocky.pdp_description.meta_tested' | t
+    {%- if product.type == 'Slab of Soap' -%}
+      <p class="r-pdp-description__note">{{ 'rocky.pdp_description.slab_of_soap' | t }}</p>
+    {%- endif -%}
 
-      if product.metafields.global.organic
-        assign organic_html = 'rocky.pdp_description.meta_organic_html' | t: percent: product.metafields.global.organic
-        assign meta_parts = meta_parts | append: ' | ' | append: organic_html
-      endif
+    {%- for tag in product.tags -%}
+      {%- if tag contains 'bath bomb offer' -%}
+        <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_bath_bomb' | t }}</p>
+      {%- endif -%}
+      {%- if tag contains 'earth-promo' -%}
+        <p class="r-pdp-description__promo">{{ 'rocky.pdp_description.promo_earth' | t }}</p>
+      {%- endif -%}
+    {%- endfor -%}
 
-      for tag in product.tags
-        if tag contains 'glass'
-          assign glass_label = 'rocky.pdp_description.meta_glass' | t
-          assign meta_parts = meta_parts | append: ' | ' | append: glass_label
+    {%- unless product.type == 'Accessories'
+      or product.type == 'Gift Card'
+      or product.type == 'Packaging'
+      or product.title contains 'Essentials Pouch' -%}
+      {%- liquid
+        assign meta_parts = ''
+        assign meta_parts = meta_parts | append: 'rocky.pdp_description.meta_tested' | t
+
+        if product.metafields.global.organic
+          assign organic_html = 'rocky.pdp_description.meta_organic_html' | t: percent: product.metafields.global.organic
+          assign meta_parts = meta_parts | append: ' | ' | append: organic_html
         endif
-        if tag contains 'plastic'
-          assign plastic_label = 'rocky.pdp_description.meta_plastic' | t
-          assign meta_parts = meta_parts | append: ' | ' | append: plastic_label
-        endif
-      endfor
 
-      if variant.options[1] != blank
-        assign meta_parts = meta_parts | append: ' | Size/Weight: ' | append: variant.options[1]
-      endif
-    -%}
-    <p class="r-pdp-description__meta">{{ meta_parts }}</p>
-  {%- endunless -%}
-</div>
+        for tag in product.tags
+          if tag contains 'glass'
+            assign glass_label = 'rocky.pdp_description.meta_glass' | t
+            assign meta_parts = meta_parts | append: ' | ' | append: glass_label
+          endif
+          if tag contains 'plastic'
+            assign plastic_label = 'rocky.pdp_description.meta_plastic' | t
+            assign meta_parts = meta_parts | append: ' | ' | append: plastic_label
+          endif
+        endfor
+
+        if variant.options[1] != blank
+          assign meta_parts = meta_parts | append: ' | Size/Weight: ' | append: variant.options[1]
+        endif
+      -%}
+      <p class="r-pdp-description__meta">{{ meta_parts }}</p>
+    {%- endunless -%}
+  </div>
+
+  <button
+    type="button"
+    class="r-pdp-description__toggle"
+    ref="button"
+    on:click="/toggle"
+    aria-expanded="false"
+  >
+    <span class="r-pdp-description__toggle-more">{{ 'actions.show_more' | t }}</span>
+    <span class="r-pdp-description__toggle-less">{{ 'actions.show_less' | t }}</span>
+  </button>
+</r-read-more>
 
 {% stylesheet %}
+  .r-pdp-description {
+    display: block;
+  }
+
+  .r-pdp-description__content {
+    overflow: hidden;
+  }
+
   .r-pdp-description__rte + .r-pdp-description__rte {
     margin-block-start: var(--margin-sm, 12px);
   }
@@ -79,8 +102,63 @@
   }
 
   .r-pdp-description__meta {
-    color: var(--color-foreground-secondary, #555);
-    font-size: 0.85rem;
+    color: rgb(var(--color-foreground-rgb) / 0.6);
+    font-size: var(--font-size--xs, 0.8125rem);
+  }
+
+  /* Toggle: hidden by default (desktop shows the full description). Revealed on
+     mobile via the media query below; hidden again when the copy is short
+     enough to fit (data-fits, set by r-read-more.js). */
+  .r-pdp-description__toggle {
+    display: none;
+    align-items: center;
+    margin-block-start: var(--margin-sm, 12px);
+    padding: 0;
+    background: none;
+    border: none;
+    color: var(--color-foreground);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+
+  .r-pdp-description__toggle-less {
+    display: none;
+  }
+
+  .r-pdp-description[data-expanded='true'] .r-pdp-description__toggle-more {
+    display: none;
+  }
+
+  .r-pdp-description[data-expanded='true'] .r-pdp-description__toggle-less {
+    display: inline;
+  }
+
+  /* Collapsed clamp + toggle are mobile-only; desktop always shows the full
+     description with no toggle. */
+  @media screen and (max-width: 749px) {
+    /* Clamp + fade only when the copy actually overflows — short descriptions
+       (data-fits, set by r-read-more.js) must not get a faded bottom edge. */
+    .r-pdp-description[data-expanded='false']:not([data-fits]) .r-pdp-description__content {
+      max-height: var(--r-pdp-description-clamp, 12em);
+      -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0) 70%, transparent 100%);
+      mask-image: linear-gradient(to bottom, rgb(0 0 0) 70%, transparent 100%);
+    }
+
+    .r-pdp-description__toggle {
+      display: inline-flex;
+    }
+
+    .r-pdp-description[data-fits] .r-pdp-description__toggle {
+      display: none;
+    }
+  }
+
+  @media screen and (min-width: 750px) {
+    .r-pdp-description__content {
+      max-height: none;
+    }
   }
 {% endstylesheet %}
 

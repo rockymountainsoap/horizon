@@ -2037,6 +2037,52 @@
     ]
   },
   {
+    "name": "t:names.r_product_page",
+    "settings": [
+      {
+        "type": "header",
+        "content": "t:content.r_pdp_guarantees"
+      },
+      {
+        "type": "paragraph",
+        "content": "t:content.r_pdp_guarantees_info"
+      },
+      {
+        "type": "text",
+        "id": "pdp_returns_label",
+        "label": "t:settings.r_pdp_returns_label",
+        "default": "Love it or return it"
+      },
+      {
+        "type": "richtext",
+        "id": "pdp_returns_body",
+        "label": "t:settings.r_pdp_returns_body",
+        "default": "<p>If you don't love it, send it back. We offer easy 30-day returns on every order — no questions asked.</p>"
+      },
+      {
+        "type": "text",
+        "id": "pdp_shipping_label",
+        "label": "t:settings.r_pdp_shipping_label",
+        "default": "Free shipping over $60 CAD"
+      },
+      {
+        "type": "richtext",
+        "id": "pdp_shipping_body",
+        "label": "t:settings.r_pdp_shipping_body",
+        "default": "<p>Enjoy free standard shipping on all Canadian orders over $60 CAD. Your order ships carbon-neutral from our workshop in the Canadian Rockies.</p>"
+      },
+      {
+        "type": "header",
+        "content": "t:content.r_pdp_subscribe"
+      },
+      {
+        "type": "url",
+        "id": "pdp_subscribe_learn_more_url",
+        "label": "t:settings.r_pdp_subscribe_learn_more_url"
+      }
+    ]
+  },
+  {
     "name": "t:names.drawers",
     "settings": [
       {

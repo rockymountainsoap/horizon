@@ -199,6 +199,21 @@ Don't. Extend by composition — a new `r-*.js` module importing `@theme/*`. If 
 
 ---
 
+## Page Width, Gutters & Full-Width Content
+
+The page shell (max width, side gutters, PDP column split) is driven from the
+**GLOBAL PAGE SHELL** token block at the top of `assets/r-base.css` — not the
+theme editor's *Page width* setting, which is intentionally inert because
+`config/settings_data.json` is merchant-owned and never ships with a push.
+
+Before building any edge-to-edge or bleed layout, read
+**`.cursor/references/full-width-content.md`** — it has a decision table
+(section setting vs `.force-full-width` vs Rocky's `.r-bleed`), the section grid
+model, the shell tokens, and verified gotchas. Most full-width needs are one
+class or one schema setting; do not hand-roll negative margins.
+
+---
+
 ## Colour Schemes in 5 Lines
 
 1. Rocky uses exactly 3 schemes: `scheme-1` (Light), `scheme-2` (Dark), `scheme-3` (Journal)
