@@ -1,0 +1,120 @@
+{%- liquid
+  # Rocky PDP subtitle — the scent line under the product title (e.g. "JUICY
+  # ORANGE").
+  #
+  # Source order:
+  #   1. the named product option's selected value (Scent is a Combined Listing
+  #      option, so each scent is its own product and the selected value is
+  #      this product's scent);
+  #   2. a metafield fallback for products that carry the scent as data rather
+  #      than as an option.
+  # Renders nothing when neither resolves.
+  assign product = closest.product
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+
+  assign subtitle = ''
+  assign wanted = block.settings.option_name | downcase | strip
+
+  if wanted != blank
+    for product_option in product.options_with_values
+      assign candidate = product_option.name | downcase | strip
+      if candidate == wanted
+        assign subtitle = product_option.selected_value
+        break
+      endif
+    endfor
+  endif
+
+  if subtitle == blank
+    assign ns = block.settings.metafield_namespace | strip
+    assign key = block.settings.metafield_key | strip
+    if ns != blank and key != blank
+      assign fallback = product.metafields[ns][key]
+      if fallback != blank
+        assign subtitle = fallback.value | default: fallback
+      endif
+    endif
+  endif
+-%}
+
+{%- if subtitle != blank -%}
+  <p class="r-pdp-subtitle color-{{ scheme }}" {{ block.shopify_attributes }}>
+    {{- subtitle -}}
+  </p>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-subtitle {
+    margin: 0;
+    color: var(--r-pdp-subtitle-color, var(--color-primary));
+    /* Joins the PDP micro-label tier (SIZE/SCENT/breadcrumb); token cascades
+       from .product-details, with the upstream --xs as a standalone fallback. */
+    font-size: var(--r-pdp-label-size, var(--font-size--xs, 0.8125rem));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_subtitle",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "option_name",
+      "label": "t:settings.r_pdp_subtitle_option",
+      "info": "t:settings.r_pdp_subtitle_option_info",
+      "default": "Scent"
+    },
+    {
+      "type": "header",
+      "content": "t:content.r_pdp_fallback"
+    },
+    {
+      "type": "text",
+      "id": "metafield_namespace",
+      "label": "t:settings.r_pdp_metafield_namespace",
+      "default": "rocky"
+    },
+    {
+      "type": "text",
+      "id": "metafield_key",
+      "label": "t:settings.r_pdp_metafield_key",
+      "default": "scent"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_subtitle",
+      "category": "Rocky — PDP",
+      "settings": {
+        "option_name": "Scent",
+        "metafield_namespace": "rocky",
+        "metafield_key": "scent",
+        "inherit_color_scheme": true
+      }
+    }
+  ]
+}
+{% endschema %}

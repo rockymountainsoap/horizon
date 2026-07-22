@@ -30,18 +30,71 @@
     display: contents;
   }
 
-  /* --- Premium framing --------------------------------------------------- */
+  /* --- Thumbnail rail: floated over the hero ------------------------------ */
 
-  /* Breathing room between the hero and the thumbnail rail. */
-  .r-pdp-gallery slideshow-controls[thumbnails][pagination-position='center'] {
-    margin-block-start: var(--r-space-sm, 16px);
+  /* Elevated treatment — the rail sits ON the media rather than beneath it, so
+     the hero keeps the full frame. The rail is a translucent "glass" pill so it
+     reads over any artwork; the blur is progressive enhancement (the tint alone
+     carries contrast where backdrop-filter is unsupported). */
+  .r-pdp-gallery media-gallery {
+    position: relative;
   }
 
-  /* --- Thumbnail rail craft ---------------------------------------------- */
+  /* Sticky, not absolute: the rail is pulled up over the foot of the media by a
+     negative margin, then pins to the bottom of the viewport while the (full
+     height) hero scrolls past — so the previews stay reachable without capping
+     the media's height.
+
+     The negative margin is what makes the rail come to rest OVER the slide.
+     Sticky travel is bounded by the containing block (<slideshow-component>);
+     without the pull-up the rail contributes its own height to that block, so
+     the container ends BELOW the slide and the rail settles in the white space
+     under the image. Pulling it up by its own height + inset keeps the
+     container's bottom flush with the slide, so the rail's final resting place
+     overlaps the slide contents.
+
+     --r-pdp-gallery-rail-height should track the rendered rail height (rail =
+     thumbnail height + the container's padding); 6rem matches the 64px
+     thumbnails currently configured. */
+  .r-pdp-gallery media-gallery slideshow-controls[thumbnails] {
+    position: sticky;
+    z-index: var(--layer-raised, 2);
+    bottom: var(--r-pdp-gallery-rail-inset, 1rem);
+    margin-block-start: calc(
+      (var(--r-pdp-gallery-rail-height, 6rem) + var(--r-pdp-gallery-rail-inset, 1rem)) * -1
+    );
+    width: auto;
+    min-height: 0;
+    pointer-events: none; /* re-enabled on the pill so the hero stays clickable */
+  }
+
+  .r-pdp-gallery media-gallery slideshow-controls[thumbnails] .slideshow-controls__thumbnails-container {
+    width: fit-content;
+    max-width: calc(100% - (var(--r-pdp-gallery-rail-inset, 1rem) * 2));
+    margin-inline: auto;
+    pointer-events: auto;
+    border-radius: 0;
+    background: rgb(0 0 0 / 0.28);
+    box-shadow: 0 2px 12px rgb(0 0 0 / 0.18);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .r-pdp-gallery media-gallery slideshow-controls[thumbnails] .slideshow-controls__thumbnails-container {
+      background: rgb(0 0 0 / 0.18);
+      backdrop-filter: blur(12px);
+    }
+  }
+
+  /* Square corners throughout — thumbnails, their images, and the rail. */
+  .r-pdp-gallery .slideshow-controls__thumbnails .slideshow-control,
+  .r-pdp-gallery .slideshow-controls__thumbnails .slideshow-control img {
+    border-radius: 0;
+  }
 
   /* Tighter, more editorial spacing than the stock rail. */
   .r-pdp-gallery .slideshow-controls__thumbnails {
     gap: var(--r-space-2xs, 8px);
+    padding: var(--r-space-2xs, 8px);
   }
 
   /* Soft dim on inactive thumbs; full presence on hover/active. */
@@ -61,24 +114,46 @@
 
   /* Refined active indicator: a single thin ring rather than the stock
      outline + border pairing — reads cleaner against product imagery.
+     Sitting on the dark glass pill, the ring is light rather than the page
+     foreground, which would disappear against it.
      Higher specificity than the stock rule (extra .r-pdp-gallery scope). */
   .r-pdp-gallery .slideshow-controls__thumbnails .slideshow-control[aria-selected='true'] {
-    outline: 1.5px solid var(--color-foreground);
+    outline: 1.5px solid rgb(var(--color-white-rgb) / 0.95);
     outline-offset: 2px;
     border: none;
   }
 
-  /* Keyboard focus must stay clearly visible in every colour scheme —
-     never let the thumbnail's own styling swallow the focus ring. */
+  /* Keyboard focus must stay clearly visible over arbitrary artwork. Doubling a
+     light ring with a dark halo keeps it legible on both light and dark media,
+     where a single-colour ring can vanish. */
   .r-pdp-gallery .slideshow-controls__thumbnail:focus-visible {
-    outline: var(--focus-outline-width, 2px) solid var(--color-foreground);
+    outline: var(--focus-outline-width, 2px) solid rgb(var(--color-white-rgb) / 1);
     outline-offset: 2px;
+    box-shadow: 0 0 0 calc(var(--focus-outline-width, 2px) + 2px) rgb(0 0 0 / 0.55);
   }
 
   @media (prefers-reduced-motion: reduce) {
     .r-pdp-gallery .slideshow-controls__thumbnail {
       transition: none;
     }
+  }
+
+  /* --- Media sizing ------------------------------------------------------- */
+
+  /* The hero is deliberately NOT height-constrained: it runs at its full size
+     (the aspect ratio drives the box, the column drives the width) rather than
+     being shrunk to fit above the fold. Thumbnail access is preserved by the
+     sticky rail above, not by capping the media. */
+  .r-pdp-gallery media-gallery .product-media-container :is(img, video, model-viewer, iframe) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Square corners on the media itself. */
+  .r-pdp-gallery media-gallery .product-media-container,
+  .r-pdp-gallery media-gallery .product-media-container :is(img, video, model-viewer, iframe) {
+    border-radius: 0;
   }
 {% endstylesheet %}
 
@@ -107,7 +182,8 @@
       "type": "checkbox",
       "id": "constrain_to_viewport",
       "label": "t:settings.limit_media_to_screen_height",
-      "default": true
+      "info": "t:settings.r_pdp_gallery_constrain_info",
+      "default": false
     },
     {
       "type": "select",
@@ -128,7 +204,15 @@
       "max": 32,
       "step": 1,
       "unit": "px",
-      "default": 4
+      "default": 0
+    },
+    {
+      "type": "checkbox",
+      "id": "extend_media",
+      "label": "t:settings.extend_media_to_screen_edge",
+      "info": "t:settings.r_pdp_gallery_extend_info",
+      "default": false,
+      "visible_if": "{{ section.settings.content_width == 'content-center-aligned' }}"
     },
     {
       "type": "checkbox",
@@ -223,7 +307,7 @@
       "max": 50,
       "step": 1,
       "unit": "px",
-      "default": 4,
+      "default": 0,
       "visible_if": "{{ block.settings.slideshow_controls_style == 'thumbnails' or block.settings.slideshow_mobile_controls_style == 'thumbnails' }}"
     },
     {
@@ -274,15 +358,16 @@
       "category": "Rocky — PDP",
       "settings": {
         "aspect_ratio": "1/1.25",
-        "constrain_to_viewport": true,
-        "media_radius": 4,
+        "constrain_to_viewport": false,
+        "media_radius": 0,
+        "extend_media": false,
         "zoom": true,
         "hide_variants": true,
         "slideshow_controls_style": "thumbnails",
         "slideshow_mobile_controls_style": "thumbnails",
         "thumbnail_position": "bottom",
         "thumbnail_width": 64,
-        "thumbnail_radius": 4,
+        "thumbnail_radius": 0,
         "inherit_color_scheme": true
       }
     }

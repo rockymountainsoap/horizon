@@ -1,0 +1,93 @@
+{%- liquid
+  # Rocky PDP badge — a tag-driven pill (e.g. "BEST SELLER").
+  #
+  # Matching is case-insensitive so merchants can tag "Best Seller",
+  # "best seller" or "BEST SELLER" interchangeably. Renders nothing when the
+  # product does not carry the trigger tag.
+  assign product = closest.product
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+
+  assign trigger = block.settings.tag | downcase | strip
+  assign matched = false
+
+  if trigger != blank
+    for tag in product.tags
+      assign candidate = tag | downcase | strip
+      if candidate == trigger
+        assign matched = true
+        break
+      endif
+    endfor
+  endif
+
+  assign label = block.settings.label | default: block.settings.tag
+-%}
+
+{%- if matched and label != blank -%}
+  <span class="r-pdp-badge color-{{ scheme }}" {{ block.shopify_attributes }}>
+    {{- label -}}
+  </span>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-badge {
+    display: inline-block;
+    width: fit-content;
+    padding: 0.4em 0.75em;
+    background-color: var(--r-pdp-badge-bg, var(--color-primary));
+    color: var(--r-pdp-badge-fg, var(--color-background));
+    font-size: var(--r-pdp-label-size, var(--font-size--xs, 0.8125rem));
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_badge",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "tag",
+      "label": "t:settings.r_pdp_badge_tag",
+      "info": "t:settings.r_pdp_badge_tag_info",
+      "default": "best-sellers"
+    },
+    {
+      "type": "text",
+      "id": "label",
+      "label": "t:settings.r_pdp_badge_label",
+      "info": "t:settings.r_pdp_badge_label_info"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_badge",
+      "category": "Rocky — PDP",
+      "settings": { "tag": "best-sellers", "label": "Best Seller", "inherit_color_scheme": true }
+    }
+  ]
+}
+{% endschema %}

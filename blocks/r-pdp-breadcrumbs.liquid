@@ -1,0 +1,169 @@
+{%- liquid
+  # Rocky PDP breadcrumb — derived from the Shopify standard product taxonomy
+  # (product.category, a taxonomy_category object exposing `name` + `ancestors`)
+  # with product.type as the fallback when no category is assigned.
+  #
+  # Renders nothing at all when neither source has a value, so products that
+  # have not been categorised in admin degrade cleanly.
+  assign product = closest.product
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+
+  # Liquid has no array-append filter, so the trail is accumulated into a
+  # delimited string and split at the end. The delimiter is deliberately one no
+  # category or product type would contain.
+  assign sep = '~|~'
+  assign trail = ''
+
+  case block.settings.source
+    when 'taxonomy'
+      if product.category != blank
+        assign depth = block.settings.ancestor_depth
+        if depth > 0 and product.category.ancestors.size > 0
+          # `ancestors` runs leaf-ward → root-ward, so take from the front and
+          # reverse to read root → leaf.
+          assign near = product.category.ancestors | slice: 0, depth | reverse
+          for ancestor in near
+            assign trail = trail | append: sep | append: ancestor.name
+          endfor
+        endif
+        assign trail = trail | append: sep | append: product.category.name
+      endif
+    when 'product_type'
+      if product.type != blank
+        assign trail = trail | append: sep | append: product.type
+      endif
+    else
+      if product.type != blank
+        assign trail = trail | append: sep | append: product.type
+      endif
+      if product.category != blank and product.category.name != product.type
+        assign trail = trail | append: sep | append: product.category.name
+      endif
+  endcase
+
+  # Fallback: never render an empty shell.
+  if trail == blank and product.type != blank
+    assign trail = trail | append: sep | append: product.type
+  endif
+
+  assign crumbs = trail | remove_first: sep | split: sep
+-%}
+
+{%- if crumbs.size > 0 -%}
+  <nav
+    class="r-pdp-breadcrumbs color-{{ scheme }}"
+    aria-label="{{ 'rocky.pdp_breadcrumbs.label' | t }}"
+    {{ block.shopify_attributes }}
+  >
+    <ol class="r-pdp-breadcrumbs__list">
+      {%- for crumb in crumbs -%}
+        <li class="r-pdp-breadcrumbs__item">
+          {%- if forloop.last -%}
+            <span class="r-pdp-breadcrumbs__current" aria-current="true">{{ crumb }}</span>
+          {%- else -%}
+            <span class="r-pdp-breadcrumbs__crumb">{{ crumb }}</span>
+            <span class="r-pdp-breadcrumbs__sep" aria-hidden="true">{{ block.settings.separator }}</span>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+    </ol>
+  </nav>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-breadcrumbs {
+    display: block;
+  }
+
+  .r-pdp-breadcrumbs__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--r-space-2xs, 8px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--r-pdp-label-size, var(--font-size--xs, 0.8125rem));
+    color: var(--color-foreground-secondary, currentcolor);
+  }
+
+  .r-pdp-breadcrumbs__item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--r-space-2xs, 8px);
+  }
+
+  .r-pdp-breadcrumbs__sep {
+    opacity: 0.6;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_breadcrumbs",
+  "tag": null,
+  "settings": [
+    {
+      "type": "select",
+      "id": "source",
+      "label": "t:settings.r_pdp_breadcrumbs_source",
+      "info": "t:settings.r_pdp_breadcrumbs_source_info",
+      "options": [
+        { "value": "both", "label": "t:options.r_pdp_breadcrumbs_both" },
+        { "value": "taxonomy", "label": "t:options.r_pdp_breadcrumbs_taxonomy" },
+        { "value": "product_type", "label": "t:options.r_pdp_breadcrumbs_product_type" }
+      ],
+      "default": "both"
+    },
+    {
+      "type": "range",
+      "id": "ancestor_depth",
+      "label": "t:settings.r_pdp_breadcrumbs_depth",
+      "info": "t:settings.r_pdp_breadcrumbs_depth_info",
+      "min": 0,
+      "max": 3,
+      "step": 1,
+      "default": 1,
+      "visible_if": "{{ block.settings.source == 'taxonomy' }}"
+    },
+    {
+      "type": "text",
+      "id": "separator",
+      "label": "t:settings.r_pdp_breadcrumbs_separator",
+      "default": "—"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_breadcrumbs",
+      "category": "Rocky — PDP",
+      "settings": {
+        "source": "both",
+        "ancestor_depth": 1,
+        "separator": "—",
+        "inherit_color_scheme": true
+      }
+    }
+  ]
+}
+{% endschema %}

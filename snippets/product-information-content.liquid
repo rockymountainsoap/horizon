@@ -92,12 +92,18 @@
   >
     {% assign render_order_array = render_order | split: ',' %}
     {% capture media %}
-      <div
+      {%- # r: smart-sticky media column. On the PDP the gallery is a fixed-
+        # height hero, so whichever pane is SHORTER than the grid needs to pin
+        # while the taller one scrolls. Both columns are <r-sticky-sidebar>
+        # (details opts in via its block setting); the engine only engages
+        # where there is travel slack, so the taller pane is untouched. -%}
+      <r-sticky-sidebar
         class="product-information__media"
         data-testid="product-information-media"
       >
         {{ media_gallery }}
-      </div>
+      </r-sticky-sidebar>
+      <script src="{{ 'r-sticky-sidebar.js' | asset_url }}" type="module"></script>
     {% endcapture %}
 
     {% for block in render_order_array %}
@@ -133,6 +139,25 @@
     order: 0;
     width: 0;
     min-width: 100%;
+  }
+
+  /* r: pin the media column while a taller details column scrolls (and vice
+     versa — the details column has the same treatment via its own block).
+     align-self: start is load-bearing: a stretched grid item is as tall as the
+     grid and has zero sticky travel. r-sticky-sidebar.js adds dual-direction
+     travel when the gallery itself is taller than the viewport. */
+  @media screen and (min-width: 750px) {
+    r-sticky-sidebar.product-information__media {
+      display: block;
+      position: sticky;
+      top: var(--r-sticky-header-offset, 0px);
+      align-self: start;
+    }
+
+    body:has(#header-component[data-sticky-state='active'])
+      r-sticky-sidebar.product-information__media {
+      --r-sticky-header-offset: var(--header-height);
+    }
   }
 
   .product-information__media .product-media-gallery__placeholder-image {
@@ -282,20 +307,25 @@
     }
   }
 
-  /* Wider sidebar for large screens */
-  @media screen and (min-width: 1200px) {
+  /* Wider sidebar for large screens.
+     r: the media/details split is tokenised so the PDP proportions can be tuned
+     from the single page-shell block in r-base.css. The details column is a
+     viewport-fluid clamp, so the balance scales continuously; below 990px the
+     split still comes from --sidebar-width (min(50vw, 25rem) ≈ a ~16px step at
+     the boundary, visually seamless). */
+  @media screen and (min-width: 990px) {
     .product-information__grid:not(
         .product-information__grid--half,
         .product-information--media-none
       ).product-information--media-left {
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: var(--r-shell-pdp-media-col, 2fr) var(--r-shell-pdp-details-col, 1fr);
     }
 
     .product-information__grid:not(
         .product-information__grid--half,
         .product-information--media-none
       ).product-information--media-right {
-      grid-template-columns: 1fr 2fr;
+      grid-template-columns: var(--r-shell-pdp-details-col, 1fr) var(--r-shell-pdp-media-col, 2fr);
     }
   }
 

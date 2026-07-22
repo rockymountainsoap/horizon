@@ -1,7 +1,9 @@
 {%- # r: sticky-sidebar — render the details column as <r-sticky-sidebar> when
     # desktop stickiness is enabled. The column is pinned with native
     # position:sticky (see the @media block in the stylesheet below);
-    # r-sticky-sidebar.js only bottom-pins columns taller than the viewport. -%}
+    # r-sticky-sidebar.js adds smart dual-direction travel for columns taller
+    # than the viewport (down-scroll pins the bottom edge, up-scroll re-engages
+    # and pins the top edge — abouolia/sticky-sidebar behaviour). -%}
 {%- liquid
   assign block_settings = block.settings
   assign r_sticky = block_settings.sticky_details_desktop
@@ -92,7 +94,9 @@
    * to travel within.
    *
    * r-sticky-sidebar.js only intervenes for a column TALLER than the viewport:
-   * it sets a negative inline `top` so the column's bottom pins instead. The
+   * it slides the inline `top` between a bottom-pin and a top-pin bound by the
+   * scroll delta, so the column travels with the page and pins its bottom edge
+   * scrolling down, then re-engages and pins its top edge scrolling up. The
    * fits-the-viewport case is pure CSS below — no JavaScript at all.
    */
   @media screen and (min-width: 750px) {

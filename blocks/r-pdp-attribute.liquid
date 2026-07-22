@@ -1,0 +1,222 @@
+{%- liquid
+  # Rocky PDP attribute — renders a product attribute as either a headed list
+  # ("Made with" → key ingredients) or an inline label/value row ("Skin type →
+  # Oily"). One block covers both because they are the same shape: a label plus
+  # one or more values read from a metafield.
+  #
+  # SOURCE. Primary is a Shopify standard-taxonomy category attribute, which is
+  # exposed as a metafield in the `shopify` namespace keyed by the attribute
+  # handle (e.g. shopify / skin-type). Those handles contain dashes, so the
+  # lookup MUST use bracket notation — with dot notation Liquid would apply a
+  # built-in filter to the namespace instead of reading the metafield.
+  # A secondary namespace/key is tried when the primary is empty, so the block
+  # keeps working whether the data lands in the taxonomy attribute or in a
+  # Rocky-owned metafield mirror.
+  #
+  # Taxonomy attribute values are list.metaobject_reference metafields, so they
+  # are rendered with metafield_tag / metafield_text and a `field` parameter.
+  # Plain text and list.single_line_text_field metafields are handled too.
+  assign product = closest.product
+  assign scheme = block.settings.color_scheme
+  if block.settings.inherit_color_scheme
+    assign scheme = section.settings.color_scheme
+  endif
+
+  assign field = block.settings.value_field | default: 'label'
+
+  assign ns = block.settings.namespace | strip
+  assign key = block.settings.key | strip
+  assign mf = ''
+  if ns != blank and key != blank
+    assign mf = product.metafields[ns][key]
+  endif
+
+  if mf == blank
+    assign ns2 = block.settings.fallback_namespace | strip
+    assign key2 = block.settings.fallback_key | strip
+    if ns2 != blank and key2 != blank
+      assign mf = product.metafields[ns2][key2]
+    endif
+  endif
+
+  assign is_metaobject = false
+  if mf.type contains 'metaobject_reference'
+    assign is_metaobject = true
+  endif
+-%}
+
+{%- if mf != blank -%}
+  <div
+    class="r-pdp-attribute r-pdp-attribute--{{ block.settings.layout }} color-{{ scheme }}"
+    {{ block.shopify_attributes }}
+  >
+    {%- if block.settings.heading != blank -%}
+      <span class="r-pdp-attribute__label">{{ block.settings.heading }}</span>
+    {%- endif -%}
+
+    <div class="r-pdp-attribute__value">
+      {%- if block.settings.layout == 'inline' -%}
+        {%- if is_metaobject -%}
+          {{ mf | metafield_text: field: field }}
+        {%- else -%}
+          {{ mf | metafield_text }}
+        {%- endif -%}
+      {%- else -%}
+        {%- if is_metaobject -%}
+          {{ mf | metafield_tag: field: field }}
+        {%- else -%}
+          {{ mf | metafield_tag }}
+        {%- endif -%}
+      {%- endif -%}
+    </div>
+  </div>
+{%- endif -%}
+
+{% stylesheet %}
+  .r-pdp-attribute__label {
+    font-weight: 600;
+  }
+
+  /* Stacked — heading above a list of values (e.g. "Made with"). */
+  .r-pdp-attribute--stacked {
+    display: flex;
+    flex-direction: column;
+    gap: var(--r-space-2xs, 8px);
+  }
+
+  .r-pdp-attribute--stacked .r-pdp-attribute__value ul,
+  .r-pdp-attribute--stacked .r-pdp-attribute__value ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15em;
+  }
+
+  /* Inline — label and value on one row (e.g. "Skin type   Oily"), matching the
+     variant-selector rows it sits beside. */
+  .r-pdp-attribute--inline {
+    display: flex;
+    align-items: baseline;
+    gap: var(--r-space-sm, 16px);
+  }
+
+  .r-pdp-attribute--inline .r-pdp-attribute__label {
+    flex: 0 0 auto;
+    font-size: var(--font-size--xs, 0.8rem);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-foreground-secondary, currentcolor);
+  }
+
+  .r-pdp-attribute--inline .r-pdp-attribute__value ul,
+  .r-pdp-attribute--inline .r-pdp-attribute__value ol {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .r-pdp-attribute--inline .r-pdp-attribute__value li {
+    display: inline;
+  }
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "t:names.r_pdp_attribute",
+  "tag": null,
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "t:settings.r_pdp_attribute_heading",
+      "default": "Made with"
+    },
+    {
+      "type": "select",
+      "id": "layout",
+      "label": "t:settings.r_pdp_attribute_layout",
+      "options": [
+        { "value": "stacked", "label": "t:options.r_pdp_attribute_stacked" },
+        { "value": "inline", "label": "t:options.r_pdp_attribute_inline" }
+      ],
+      "default": "stacked"
+    },
+    {
+      "type": "header",
+      "content": "t:content.r_pdp_attribute_source"
+    },
+    {
+      "type": "paragraph",
+      "content": "t:content.r_pdp_attribute_source_info"
+    },
+    {
+      "type": "text",
+      "id": "namespace",
+      "label": "t:settings.r_pdp_metafield_namespace",
+      "default": "shopify"
+    },
+    {
+      "type": "text",
+      "id": "key",
+      "label": "t:settings.r_pdp_metafield_key"
+    },
+    {
+      "type": "text",
+      "id": "value_field",
+      "label": "t:settings.r_pdp_attribute_value_field",
+      "info": "t:settings.r_pdp_attribute_value_field_info",
+      "default": "label"
+    },
+    {
+      "type": "header",
+      "content": "t:content.r_pdp_fallback"
+    },
+    {
+      "type": "text",
+      "id": "fallback_namespace",
+      "label": "t:settings.r_pdp_metafield_namespace",
+      "default": "rocky"
+    },
+    {
+      "type": "text",
+      "id": "fallback_key",
+      "label": "t:settings.r_pdp_metafield_key"
+    },
+    {
+      "type": "header",
+      "content": "t:content.section_layout"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_color_scheme",
+      "label": "t:settings.inherit_color_scheme",
+      "default": true
+    },
+    {
+      "type": "color_scheme",
+      "id": "color_scheme",
+      "label": "t:settings.color_scheme",
+      "default": "scheme-1",
+      "visible_if": "{{ block.settings.inherit_color_scheme == false }}"
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:names.r_pdp_attribute",
+      "category": "Rocky — PDP",
+      "settings": {
+        "heading": "Made with",
+        "layout": "stacked",
+        "namespace": "shopify",
+        "fallback_namespace": "rocky",
+        "value_field": "label",
+        "inherit_color_scheme": true
+      }
+    }
+  ]
+}
+{% endschema %}
