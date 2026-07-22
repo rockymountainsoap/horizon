@@ -23,10 +23,14 @@
    ============================================================================= */
 
 :root {
-  /* Brand palette — fill in from Figma primitives */
-  --r-color-canmore: ;         /* primary brand colour */
-  --r-color-canmore-subtle: ;  /* tinted/lighter variant */
-  --r-color-journal: ;         /* editorial/journal mode accent */
+  /* Brand palette — Rocky primitives (Figma "Variable collection").
+     The single source of raw brand hex; everywhere else references var(--r-color-*).
+     (Defining primitives is the one sanctioned place for hex; see rules above.) */
+  --r-color-cream:      #e5d5c4;  /* Rocky Cream */
+  --r-color-green:      #3e4727;  /* Rocky Green — primary brand ink */
+  --r-color-soft-green: #cdd1bb;  /* Rocky Soft Green */
+  --r-color-taupe:      #bbbe94;  /* Taupey Green */
+  --r-color-sage:       #537044;  /* Fresh Sage */
 
   /* Typography */
   --r-font-display: var(--font-heading--family); /* was var(--font-primary--family) — undefined token */
@@ -257,28 +261,28 @@ body[class*='page-width-'] {
 
 /* --- scheme-1: Rocky Light (primary commerce surface) ---------------------- */
 .color-scheme-1 {
-  --r-surface-subtle:      ;  /* very light tint above background   */
-  --r-color-journal-bg:    ;  /* warm off-white editorial background */
-  --r-color-brand-accent:  ;  /* Canmore tan / brand warm accent     */
-  --r-color-brand-primary: ;  /* primary brand ink colour            */
+  --r-surface-subtle:      var(--r-color-cream);  /* warm light tint above background     */
+  --r-color-journal-bg:    var(--r-color-cream);  /* warm off-white editorial background  */
+  --r-color-brand-accent:  var(--r-color-sage);   /* Fresh Sage — accent on light surface */
+  --r-color-brand-primary: var(--r-color-green);  /* Rocky Green — primary brand ink      */
   --r-cart-reward-accent: oklch(70% 0.14 75);   /* warm gold — cart progress bar reward markers */
 }
 
 /* --- scheme-2: Rocky Dark (hero / inverse / feature) ----------------------- */
 .color-scheme-2 {
-  --r-surface-subtle:      ;
-  --r-color-journal-bg:    ;
-  --r-color-brand-accent:  ;
-  --r-color-brand-primary: ;
+  --r-surface-subtle:      var(--r-color-sage);   /* lifted green tint above the dark surface */
+  --r-color-journal-bg:    var(--r-color-green);  /* dark editorial background                 */
+  --r-color-brand-accent:  var(--r-color-taupe);  /* Taupey Green — accent on dark            */
+  --r-color-brand-primary: var(--r-color-cream);  /* Cream — primary ink on dark             */
   --r-cart-reward-accent: oklch(82% 0.13 75);   /* lifted gold for contrast on dark surface */
 }
 
 /* --- scheme-3: Rocky Journal (editorial / natural) ------------------------- */
 .color-scheme-3 {
-  --r-surface-subtle:      ;
-  --r-color-journal-bg:    ;
-  --r-color-brand-accent:  ;
-  --r-color-brand-primary: ;
+  --r-surface-subtle:      var(--r-color-soft-green);  /* pale sage tint          */
+  --r-color-journal-bg:    var(--r-color-cream);       /* warm editorial background */
+  --r-color-brand-accent:  var(--r-color-sage);        /* Fresh Sage accent       */
+  --r-color-brand-primary: var(--r-color-green);       /* Rocky Green ink         */
   --r-cart-reward-accent: oklch(68% 0.15 65);   /* deeper amber for the editorial palette */
 }
 
