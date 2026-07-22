@@ -211,7 +211,7 @@
                     "padding-block-start": 0,
                     "padding-block-end": 0,
                     "padding-inline-start": 24,
-                    "padding-inline-end": 24
+                    "padding-inline-end": 16
                   },
                   "blocks": {
                     "review": {
