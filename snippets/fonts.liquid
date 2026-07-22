@@ -1,42 +1,17 @@
+{%- # fonts.liquid — preload the self-hosted brand face. -%}
+{%- # Rocky ships one variable woff2 (RockyAptaPro) as the theme-wide font; the @font-face -%}
+{%- # + family override live in snippets/r-fonts.liquid. The old Shopify font_picker -%}
+{%- # (Inter) preloads were removed — those fonts are no longer used, so downloading them -%}
+{%- # was dead weight. Pickers still resolve as a cosmetic fallback only. -%}
+{%- # theme-check-disable AssetPreload -- a hand-written link is required so the font -%}
+{%- # preload carries `crossorigin`; the preload_tag filter omits it and double-fetches. -%}
 {% # theme-check-disable %}
-{%- unless settings.type_body_font.system? -%}
-  <link
-    rel="preload"
-    as="font"
-    href="{{ settings.type_body_font | font_url }}"
-    type="font/woff2"
-    crossorigin
-    fetchpriority="low"
-  >
-{%- endunless -%}
-{%- unless settings.type_subheading_font.system? -%}
-  <link
-    rel="preload"
-    as="font"
-    href="{{ settings.type_subheading_font | font_url }}"
-    type="font/woff2"
-    crossorigin
-    fetchpriority="low"
-  >
-{%- endunless -%}
-{%- unless settings.type_heading_font.system? -%}
-  <link
-    rel="preload"
-    as="font"
-    href="{{ settings.type_heading_font | font_url }}"
-    type="font/woff2"
-    crossorigin
-    fetchpriority="low"
-  >
-{%- endunless -%}
-{%- unless settings.type_accent_font.system? -%}
-  <link
-    rel="preload"
-    as="font"
-    href="{{ settings.type_accent_font | font_url }}"
-    type="font/woff2"
-    crossorigin
-    fetchpriority="low"
-  >
-{%- endunless -%}
+<link
+  rel="preload"
+  as="font"
+  type="font/woff2"
+  href="{{ 'RockyAptaPro-Var.woff2' | asset_url }}"
+  crossorigin
+  fetchpriority="high"
+>
 {% # theme-check-enable %}
