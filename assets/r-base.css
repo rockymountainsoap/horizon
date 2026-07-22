@@ -29,8 +29,16 @@
   --r-color-journal: ;         /* editorial/journal mode accent */
 
   /* Typography */
-  --r-font-display: var(--font-primary--family);
+  --r-font-display: var(--font-heading--family); /* was var(--font-primary--family) — undefined token */
   --r-font-body: var(--font-body--family);
+
+  /* Letter-spacing tiers (Figma type system — constant em across sizes)
+     tight  → running text + headings
+     normal → nav, small labels, most uppercase labels
+     wide   → wide uppercase micro-labels (announcement bar, "award-winning") */
+  --r-tracking-tight: 0.02em;
+  --r-tracking-normal: 0.05em;
+  --r-tracking-wide: 0.10em;
 
   /* Spacing scale (4px base, supplements upstream) */
   --r-space-2xs: 0.5rem;   /*  8px */
@@ -44,6 +52,13 @@
 
   /* Layout */
   --r-page-width: 136rem; /* 1360px — Rocky brand standard */
+}
+
+/* Global font smoothing — match Figma/macOS rendering (comps are Mac-designed).
+   base.css sets antialiased on body/paragraph text only; this also covers headings. */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* =============================================================================
@@ -572,8 +587,8 @@ r-cart-bumpers[hidden],
      is never a mystery if a token is ever undefined.
        label = uppercase micro-labels (SIZE / SCENT / breadcrumb / subtitle …)
        value = body copy, prices, option values, reviews, controls */
-  --r-pdp-label-size: var(--font-size--xs, 0.8125rem); /* 13px */
-  --r-pdp-value-size: var(--font-size--sm, 0.875rem); /* 14px */
+  --r-pdp-label-size: 0.6875rem; /* 11px — Figma uppercase micro-label tier */
+  --r-pdp-value-size: 0.75rem; /* 12px — Figma body/value (11px floored for legibility) */
 }
 
 /* -----------------------------------------------------------------------------
