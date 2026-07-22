@@ -2736,7 +2736,7 @@ form.payment-terms {
   tr:not(:has(td)),
   thead {
     background-color: rgb(var(--color-foreground-rgb) / var(--opacity-5));
-    font-weight: bold;
+    font-weight: 500;
     text-transform: uppercase;
   }
 

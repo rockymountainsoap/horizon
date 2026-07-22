@@ -61,6 +61,14 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* The brand has no 700 weight — it reads too heavy. Emphasis caps at Medium (500).
+   Overrides the UA-default bold on <strong>/<b>/<th> (RTE copy, tables, rich text). */
+strong,
+b,
+th {
+  font-weight: 500;
+}
+
 /* =============================================================================
    GLOBAL PAGE SHELL — max width & side gutters
    -----------------------------------------------------------------------------

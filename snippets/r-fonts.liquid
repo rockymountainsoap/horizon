@@ -34,6 +34,12 @@
     --font-heading--family: var(--font-body--family);
     --font-accent--family: var(--font-body--family);
 
+    /* No 700 anywhere — the picker resolves heading/accent to inter_n7 (700), which
+       reads too heavy. Cap the source weights (used by footer headings, cart empty
+       state, account widget) at the brand's Regular/Medium. */
+    --font-heading--weight: 400;
+    --font-accent--weight: 500;
+
     /* ── Global type scale (Figma parity, E1) ───────────────────────────────
        Fixed px (rem = px/16), weight 400, tracking tight (0.02em), no case.
        Overrides the generated --font-{preset}--* tokens (this block renders after
