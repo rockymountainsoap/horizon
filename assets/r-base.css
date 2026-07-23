@@ -57,6 +57,18 @@
 
   /* Layout */
   --r-page-width: 136rem; /* 1360px — Rocky brand standard */
+
+  /* Motion vocabulary (WS9 r-media; shared across future Rocky components).
+     Upstream --animation-speed-* (0.125–0.2s) is UI-transition tuned; these
+     are the slower, dreamier register for media reveals and drift. */
+  --r-motion-duration-reveal: 750ms; /* fade-rise / blur-up crossfade */
+  --r-motion-duration-crossfade: 350ms; /* poster → video reveal */
+  --r-motion-duration-kenburns: 18s; /* slow zoom on stills */
+  --r-motion-ease-drift: cubic-bezier(0.22, 1, 0.36, 1); /* long decelerate — signature curve */
+  --r-motion-ease-soft: var(--ease-out-cubic);
+  --r-motion-rise-distance: 1.5rem;
+  --r-media-parallax-range: 6%; /* total drift travel, % of frame height */
+  --r-media-kenburns-scale: 1.12;
 }
 
 /* Global font smoothing — match Figma/macOS rendering (comps are Mac-designed).

@@ -39,10 +39,12 @@
   {%- if show_image -%}
     {% capture image_tag %}
       {% if block_settings.image != blank %}
-        {% render 'image',
+        {% render 'r-media',
           image: block_settings.image,
           class: 'media-block__media border-style',
-          unset_image_tag: unset_image_tag
+          effect: 'fade-rise blur-up',
+          sizes: '(min-width: 750px) 60vw, 100vw',
+          unset_focal: unset_image_tag
         %}
       {% else %}
         <div class="media-block__media border-style">
@@ -61,12 +63,13 @@
     {% else %}
       {{ image_tag }}
     {% endif %}
-  {%- elsif show_video -%}
-    {% render 'video',
+  {%- elsif show_video and block_settings.video != blank -%}
+    {% render 'r-media',
       video: block_settings.video,
-      video_autoplay: block_settings.video_autoplay,
-      video_loop: block_settings.video_loop,
-      video_class: 'media-block__media media-block__media--video border-style'
+      autoplay: block_settings.video_autoplay,
+      loop: block_settings.video_loop,
+      class: 'media-block__media media-block__media--video border-style',
+      sizes: '(min-width: 750px) 60vw, 100vw'
     %}
   {%- else -%}
     <div class="media-block__media border-style">
@@ -97,9 +100,13 @@
     }
   }
 
-  deferred-media[class].media-block__media
-    :is(.deferred-media__poster-button img, .deferred-media__poster-button ~ video) {
-    object-fit: var(--video-position, 'cover');
+  /* r-media's inner layers follow the block's cover/contain settings. */
+  r-media.media-block__media {
+    --r-media-fit: var(--image-position, cover);
+  }
+
+  r-media.media-block__media--video {
+    --r-media-fit: var(--video-position, cover);
   }
 
   /* This is to support corner radius on video and align the video to the center of the block */
