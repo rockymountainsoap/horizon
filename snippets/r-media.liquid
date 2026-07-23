@@ -97,14 +97,14 @@
     assign has_blur_up = true
   endif
 
+  # The ratio is emitted in every mode — only `natural` consumes it by
+  # default, but fill-mode hosts (e.g. hero auto-height) can opt in.
   assign resolved_aspect = aspect | default: 'natural'
   assign aspect_ratio = ''
-  if resolved_aspect == 'natural'
-    if poster_image != blank
-      assign aspect_ratio = poster_image.aspect_ratio
-    elsif is_video
-      assign aspect_ratio = video.aspect_ratio
-    endif
+  if poster_image != blank
+    assign aspect_ratio = poster_image.aspect_ratio
+  elsif is_video
+    assign aspect_ratio = video.aspect_ratio
   endif
 
   if decorative
@@ -266,9 +266,11 @@
     aspect-ratio: var(--r-media-aspect, auto);
   }
 
+  /* Fill mode: the caller sizes/positions the root (grid item, background
+     class, …); the media layers cover it absolutely. */
   .r-media--fill {
-    position: absolute;
-    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
   .r-media__drift {
