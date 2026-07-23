@@ -89,7 +89,10 @@ overflow-collapse primitive). `announcement-bar.js` (130) **REBUILD or ADOPT**.
 biggest call in this tier; generic sliders are genuinely hard (a11y, touch, autoplay).
 `layered-slideshow.js` (602), `marquee.js` (276), `jumbo-text.js` (199),
 `collection-links.js` (232) — **DROP**. `comparison-slider.js` (157) **DROP (D?)**.
-`video-background.js` (32), `accordion-custom.js` (107) — **ADOPT** (generic).
+`video-background.js` (32) — **DROPPED 2026-07 (WS9)**: superseded by the r-media
+framework (`assets/r-media.js` + `snippets/r-media.liquid`), which absorbed its
+src-promotion/load job into the near-viewport observer. `accordion-custom.js`
+(107) — **ADOPT** (generic).
 
 ### Small primitives — ADOPT (near-engine, markup-light)
 

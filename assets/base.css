@@ -3802,6 +3802,7 @@ fly-to-cart.fly-to-cart--sticky {
 }
 
 .group-block:has(> video-background-component),
+.group-block:has(> r-media),
 .group-block:has(> .background-image-container) {
   overflow: hidden;
 }
