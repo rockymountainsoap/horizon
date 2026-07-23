@@ -1,0 +1,472 @@
+{%- doc -%}
+  Rocky media framework (WS9) — renders a responsive image or a Shopify-hosted
+  ambient video inside <r-media> (assets/r-media.js): viewport-driven
+  autoplay/pause, near-viewport preloading, the dreamy effect vocabulary, and
+  the WCAG 2.2.2 pause/play/replay control.
+
+  Scope: native Shopify media only. YouTube/Vimeo embeds stay on the
+  click-to-play `deferred-media` path (snippets/video.liquid). Placeholder
+  rendering stays with the caller — pass a real image or video object.
+
+  @param {object} [image] - Image object (pass image XOR video)
+  @param {object} [video] - Shopify video object (uploaded media)
+  @param {object} [mobile_image] - Art-direction alternate under 750px (image variant only)
+  @param {string} [sizes] - sizes attribute; default '100vw'
+  @param {string} [sizes_mobile] - sizes for the mobile source; default = sizes
+  @param {string} [widths] - srcset widths; default '240, 352, 832, 1200, 1600, 1920, 2560, 3840'
+  @param {string} [widths_mobile] - mobile-source widths; default '416, 600, 800, 1200, 1600'
+  @param {string} [aspect] - 'natural' (default; box from media ratio, CLS-safe) or 'fill' (absolute cover — backgrounds/heroes)
+  @param {string} [loading] - 'eager' | 'lazy'; default from section.index (<= 3 eager, else lazy)
+  @param {string} [fetchpriority] - default from section.index (1 → 'high', else 'auto')
+  @param {string} [effect] - space-separated: 'fade-rise', 'blur-up', 'parallax', 'ken-burns'
+  @param {boolean} [effect_repeat] - re-trigger entrance on every viewport entry (default false)
+  @param {boolean} [autoplay] - video only; default true (muted ambient). false → click-to-play poster
+  @param {boolean} [loop] - video only; default true. false → play once + replay control
+  @param {boolean} [decorative] - background media: empty alt on the poster
+  @param {string} [alt] - poster alt override; defaults to the image's own alt
+  @param {string} [class] - extra classes on the <r-media> root
+  @param {object} [section] - enables section.index loading defaults
+  @param {string} [testid] - data-testid passthrough
+
+  @example
+  {% render 'r-media', video: section.settings.video, aspect: 'fill', decorative: true, section: section %}
+
+  @example
+  {% render 'r-media', image: block.settings.image, effect: 'fade-rise blur-up', sizes: '(min-width: 750px) 60vw, 100vw', section: section %}
+{%- enddoc -%}
+
+{% liquid
+  assign is_video = false
+  if video != blank and video.sources.size > 0
+    assign is_video = true
+  endif
+
+  if is_video
+    assign poster_image = video.preview_image
+  else
+    assign poster_image = image
+  endif
+
+  assign resolved_widths = widths | default: '240, 352, 832, 1200, 1600, 1920, 2560, 3840'
+  assign resolved_sizes = sizes | default: '100vw'
+  assign resolved_sizes_mobile = sizes_mobile | default: resolved_sizes
+  assign resolved_widths_mobile = widths_mobile | default: '416, 600, 800, 1200, 1600'
+  assign widths_mobile_array = resolved_widths_mobile | split: ', '
+
+  # Loading strategy — same convention as background-media/hero:
+  # section 1 gets fetchpriority high; the first three sections load eagerly.
+  assign resolved_fetchpriority = fetchpriority
+  if resolved_fetchpriority == blank
+    assign resolved_fetchpriority = 'auto'
+    if section != blank and section.index == 1
+      assign resolved_fetchpriority = 'high'
+    endif
+  endif
+  assign resolved_loading = loading
+  if resolved_loading == blank
+    assign resolved_loading = 'lazy'
+    if section != blank and section.index <= 3
+      assign resolved_loading = 'eager'
+    endif
+  endif
+
+  assign resolved_autoplay = true
+  if autoplay == false
+    assign resolved_autoplay = false
+  endif
+  assign resolved_loop = true
+  if loop == false
+    assign resolved_loop = false
+  endif
+
+  # LCP guard: an eagerly loaded media is a likely LCP candidate — never hold
+  # it at opacity 0 waiting for JS. Transform-only effects remain allowed.
+  assign resolved_effect = effect | default: ''
+  if resolved_loading == 'eager'
+    assign resolved_effect = resolved_effect | remove: 'fade-rise' | remove: 'blur-up'
+  endif
+  assign resolved_effect = resolved_effect | strip
+
+  if request.visual_preview_mode
+    assign resolved_autoplay = false
+    assign resolved_effect = ''
+  endif
+
+  assign has_blur_up = false
+  if resolved_effect contains 'blur-up' and poster_image != blank
+    assign has_blur_up = true
+  endif
+
+  assign resolved_aspect = aspect | default: 'natural'
+  assign aspect_ratio = ''
+  if resolved_aspect == 'natural'
+    if poster_image != blank
+      assign aspect_ratio = poster_image.aspect_ratio
+    elsif is_video
+      assign aspect_ratio = video.aspect_ratio
+    endif
+  endif
+
+  if decorative
+    assign resolved_alt = ''
+  else
+    assign resolved_alt = alt | default: poster_image.alt
+  endif
+
+  assign needs_toggle = false
+  if is_video or resolved_effect contains 'ken-burns'
+    assign needs_toggle = true
+  endif
+
+  assign variant = 'image'
+  if is_video
+    assign variant = 'video'
+  endif
+%}
+
+<script src="{{ 'r-media.js' | asset_url }}" type="module"></script>
+
+<r-media
+  class="r-media r-media--{{ variant }} r-media--{{ resolved_aspect }}{% if class != blank %} {{ class }}{% endif %}"
+  {% if resolved_effect != blank %}
+    data-r-effect="{{ resolved_effect }}"
+  {% endif %}
+  {% if effect_repeat %}
+    data-r-effect-repeat
+  {% endif %}
+  {% if is_video %}
+    data-r-state="idle"
+    {% if resolved_autoplay %}
+      data-r-autoplay
+    {% endif %}
+    {% if resolved_loop %}
+      data-r-loop
+    {% endif %}
+  {% endif %}
+  {% if testid %}
+    data-testid="{{ testid }}"
+  {% endif %}
+  style="{% if aspect_ratio != blank %}--r-media-aspect: {{ aspect_ratio }};{% endif %}{% if has_blur_up %} --r-media-lqip: url('{{ poster_image | image_url: width: 32 }}');{% endif %}"
+>
+  <div class="r-media__drift" ref="drift">
+    {%- if poster_image != blank -%}
+      {%- if mobile_image != blank and is_video == false -%}
+        <picture class="r-media__picture">
+          <source
+            media="(max-width: 749px)"
+            srcset="
+              {%- for mobile_width in widths_mobile_array -%}
+                {{ mobile_image | image_url: width: mobile_width }} {{ mobile_width }}w{% unless forloop.last %},{% endunless %}
+              {%- endfor -%}
+            "
+            sizes="{{ resolved_sizes_mobile }}"
+            width="{{ mobile_image.width }}"
+            height="{{ mobile_image.height }}"
+          >
+          {{
+            poster_image
+            | image_url: width: 3840
+            | image_tag:
+              width: poster_image.width,
+              height: poster_image.height,
+              widths: resolved_widths,
+              sizes: resolved_sizes,
+              alt: resolved_alt,
+              loading: resolved_loading,
+              fetchpriority: resolved_fetchpriority,
+              class: 'r-media__el r-media__poster',
+              ref: 'poster'
+          }}
+        </picture>
+      {%- else -%}
+        {{
+          poster_image
+          | image_url: width: 3840
+          | image_tag:
+            width: poster_image.width,
+            height: poster_image.height,
+            widths: resolved_widths,
+            sizes: resolved_sizes,
+            alt: resolved_alt,
+            loading: resolved_loading,
+            fetchpriority: resolved_fetchpriority,
+            class: 'r-media__el r-media__poster',
+            ref: 'poster'
+        }}
+      {%- endif -%}
+    {%- endif -%}
+
+    {%- if is_video -%}
+      <video
+        class="r-media__el r-media__video"
+        ref="video"
+        muted
+        playsinline
+        preload="none"
+        aria-hidden="true"
+        tabindex="-1"
+        {% if resolved_loop %}
+          loop
+        {% endif %}
+      >
+        {%- for source in video.sources -%}
+          <source
+            data-r-src="{{ source.url }}"
+            type="{{ source.mime_type }}"
+            ref="sources[]"
+          >
+        {%- endfor -%}
+      </video>
+    {%- endif -%}
+  </div>
+
+  {%- if needs_toggle -%}
+    <button
+      type="button"
+      class="r-media__toggle"
+      ref="toggle"
+      on:click="/toggleMotion"
+      hidden
+    >
+      {%- if is_video -%}
+        <span class="r-media__toggle-icon r-media__toggle-icon--play">
+          <span class="visually-hidden">{{ 'accessibility.play_video' | t }}</span>
+          {{- 'icon-play.svg' | inline_asset_content -}}
+        </span>
+        <span class="r-media__toggle-icon r-media__toggle-icon--pause">
+          <span class="visually-hidden">{{ 'accessibility.pause_video' | t }}</span>
+          {{- 'icon-pause.svg' | inline_asset_content -}}
+        </span>
+        <span class="r-media__toggle-icon r-media__toggle-icon--replay">
+          <span class="visually-hidden">{{ 'rocky.media.replay_video' | t }}</span>
+          {{- 'icon-play.svg' | inline_asset_content -}}
+        </span>
+      {%- else -%}
+        <span class="r-media__toggle-icon r-media__toggle-icon--play">
+          <span class="visually-hidden">{{ 'rocky.media.play_motion' | t }}</span>
+          {{- 'icon-play.svg' | inline_asset_content -}}
+        </span>
+        <span class="r-media__toggle-icon r-media__toggle-icon--pause">
+          <span class="visually-hidden">{{ 'rocky.media.pause_motion' | t }}</span>
+          {{- 'icon-pause.svg' | inline_asset_content -}}
+        </span>
+      {%- endif -%}
+    </button>
+  {%- endif -%}
+</r-media>
+
+{% stylesheet %}
+  r-media {
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .r-media--natural {
+    aspect-ratio: var(--r-media-aspect, auto);
+  }
+
+  .r-media--fill {
+    position: absolute;
+    inset: 0;
+  }
+
+  .r-media__drift {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .r-media--fill .r-media__drift {
+    position: absolute;
+    inset: 0;
+  }
+
+  .r-media__el {
+    object-fit: var(--r-media-fit, cover);
+    object-position: center center;
+  }
+
+  /* Natural flow: the poster sizes the box (the aspect-ratio above holds the
+     space pre-load); fill mode covers an externally sized frame. */
+  .r-media--natural .r-media__poster {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .r-media--fill .r-media__poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .r-media__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+  }
+
+  /* Every visual end-state derives from data-r-state alone — a frozen
+     background tab can never strand the crossfade (transitions decorative). */
+  .r-media[data-r-state='playing'] .r-media__video,
+  .r-media[data-r-state='paused'] .r-media__video,
+  .r-media[data-r-state='ended'] .r-media__video {
+    opacity: 1;
+  }
+
+  /* ---- Control ---- */
+
+  .r-media__toggle {
+    position: absolute;
+    inset-block-end: 12px;
+    inset-inline-end: 12px;
+    z-index: var(--layer-raised);
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: rgb(var(--color-background-rgb) / 60%);
+    color: var(--color-foreground);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    opacity: 0.65;
+  }
+
+  .r-media__toggle[hidden] {
+    display: none;
+  }
+
+  .r-media__toggle:hover,
+  .r-media__toggle:focus-visible {
+    opacity: 1;
+  }
+
+  .r-media__toggle svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .r-media__toggle-icon {
+    display: grid;
+    place-items: center;
+  }
+
+  /* Video variant: play at rest, pause while playing, replay after ending. */
+  .r-media--video .r-media__toggle-icon--pause,
+  .r-media--video .r-media__toggle-icon--replay {
+    display: none;
+  }
+
+  .r-media--video[data-r-state='playing'] .r-media__toggle-icon--play {
+    display: none;
+  }
+
+  .r-media--video[data-r-state='playing'] .r-media__toggle-icon--pause {
+    display: grid;
+  }
+
+  .r-media--video[data-r-state='ended'] .r-media__toggle-icon--play {
+    display: none;
+  }
+
+  .r-media--video[data-r-state='ended'] .r-media__toggle-icon--replay {
+    display: grid;
+  }
+
+  /* Still variant (ken-burns): motion runs by default, so offer pause. */
+  .r-media--image .r-media__toggle-icon--play {
+    display: none;
+  }
+
+  .r-media--image[data-r-motion-paused] .r-media__toggle-icon--play {
+    display: grid;
+  }
+
+  .r-media--image[data-r-motion-paused] .r-media__toggle-icon--pause {
+    display: none;
+  }
+
+  /* ---- Effects — motion is opt-in by preference (base.css pattern), and the
+     hidden initial states additionally require data-r-armed (JS present and
+     driving), so no-JS visitors always see the media. ---- */
+
+  @media (prefers-reduced-motion: no-preference) {
+    .r-media__toggle {
+      transition: opacity var(--animation-speed) var(--animation-easing);
+    }
+
+    .r-media__video {
+      transition: opacity var(--r-motion-duration-crossfade) var(--r-motion-ease-soft);
+    }
+
+    /* fade-rise — soft entrance on the root; long decelerating reveal. */
+    .r-media[data-r-armed][data-r-effect~='fade-rise'] {
+      opacity: 0;
+      translate: 0 var(--r-motion-rise-distance);
+      transition:
+        opacity var(--r-motion-duration-reveal) var(--r-motion-ease-drift),
+        translate var(--r-motion-duration-reveal) var(--r-motion-ease-drift);
+    }
+
+    .r-media[data-r-armed][data-r-effect~='fade-rise'][data-r-visible] {
+      opacity: 1;
+      translate: 0 0;
+    }
+
+    /* blur-up — 32px LQIP glows beneath until the real image decodes. */
+    .r-media[data-r-armed][data-r-effect~='blur-up']::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--r-media-lqip) center center / cover no-repeat;
+      filter: blur(20px);
+      scale: 1.1;
+    }
+
+    .r-media[data-r-armed][data-r-effect~='blur-up'] .r-media__poster {
+      transition: opacity var(--r-motion-duration-reveal) var(--r-motion-ease-drift);
+    }
+
+    .r-media[data-r-armed][data-r-effect~='blur-up']:not([data-r-loaded]) .r-media__poster {
+      opacity: 0;
+    }
+
+    /* parallax — JS writes `translate` on the drift layer each frame; the
+       base scale gives the drift headroom so edges never show. */
+    .r-media[data-r-armed][data-r-effect~='parallax'] .r-media__drift {
+      scale: 1.08;
+    }
+
+    .r-media[data-r-armed][data-r-effect~='parallax'][data-r-in-view] .r-media__drift {
+      will-change: translate;
+    }
+
+    /* ken-burns — slow alternating zoom on stills, running only in view. */
+    @keyframes r-media-ken-burns {
+      from {
+        scale: 1;
+      }
+
+      to {
+        scale: var(--r-media-kenburns-scale);
+      }
+    }
+
+    .r-media[data-r-armed][data-r-effect~='ken-burns'] .r-media__poster {
+      animation: r-media-ken-burns var(--r-motion-duration-kenburns) linear infinite alternate;
+      animation-play-state: paused;
+    }
+
+    .r-media[data-r-armed][data-r-effect~='ken-burns'][data-r-in-view]:not([data-r-motion-paused])
+      .r-media__poster {
+      animation-play-state: running;
+    }
+  }
+{% endstylesheet %}

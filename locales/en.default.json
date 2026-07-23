@@ -449,6 +449,11 @@
         "list_heading": "Customer favourites",
         "list_aria": "Suggested products to add to your cart"
       }
+    },
+    "media": {
+      "replay_video": "Replay video",
+      "pause_motion": "Pause motion",
+      "play_motion": "Play motion"
     }
   }
 }
