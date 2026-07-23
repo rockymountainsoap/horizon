@@ -23,6 +23,7 @@
   @param {boolean} [autoplay] - video only; default true (muted ambient). false → click-to-play poster
   @param {boolean} [loop] - video only; default true. false → play once + replay control
   @param {boolean} [decorative] - background media: empty alt on the poster
+  @param {boolean} [unset_focal] - neutralize the image focal point (object-position: inherit) — for contain layouts
   @param {string} [alt] - poster alt override; defaults to the image's own alt
   @param {string} [class] - extra classes on the <r-media> root
   @param {object} [section] - enables section.index loading defaults
@@ -113,6 +114,13 @@
     assign resolved_alt = alt | default: poster_image.alt
   endif
 
+  # Passing an explicit object-position wins over image_tag's focal-point
+  # injection (same trick as the legacy image snippet).
+  assign poster_style = ''
+  if unset_focal
+    assign poster_style = 'object-position: inherit;'
+  endif
+
   assign needs_toggle = false
   if is_video or resolved_effect contains 'ken-burns'
     assign needs_toggle = true
@@ -174,6 +182,7 @@
               alt: resolved_alt,
               loading: resolved_loading,
               fetchpriority: resolved_fetchpriority,
+              style: poster_style,
               class: 'r-media__el r-media__poster',
               ref: 'poster'
           }}
@@ -190,6 +199,7 @@
             alt: resolved_alt,
             loading: resolved_loading,
             fetchpriority: resolved_fetchpriority,
+            style: poster_style,
             class: 'r-media__el r-media__poster',
             ref: 'poster'
         }}
